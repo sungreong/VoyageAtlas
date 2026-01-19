@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Camera, MapPin, Calendar } from 'lucide-react';
+import { Plus, Trash2, Camera, MapPin, Calendar, X } from 'lucide-react';
 
-const SimpleEventForm = ({ onAddSimpleTrip }) => {
+const SimpleEventForm = ({ onAddSimpleTrip, onClose }) => {
   const [title, setTitle] = useState('');
   const [startCity, setStartCity] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -56,7 +56,12 @@ const SimpleEventForm = ({ onAddSimpleTrip }) => {
 
   return (
     <form className="event-form glass-panel simple-itinerary" onSubmit={handleSubmit} style={{ width: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
-      <h3>CREATE NEW ODYSSEY</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3>CREATE NEW ODYSSEY</h3>
+        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
+          <X size={20} />
+        </button>
+      </div>
       <p style={{ fontSize: '10px', opacity: 0.7, marginBottom: '15px' }}>SIMPLIFIED FLIGHT PLANNING SYSTEM</p>
       
       <div className="form-section">

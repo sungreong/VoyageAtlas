@@ -72,12 +72,20 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
     
     # 3. Create Events for each leg
     event_ids = []
-    for leg in req.legs:
+    for i, leg in enumerate(req.legs):
         dest_lat, dest_lng = geocode_city(leg.city_name)
         if dest_lat is None:
             event_ids.append(None)
             continue 
             
+        # Determine event date: 
+        # For the first leg, use the Trip Start Date (Departure).
+        # For subsequent legs, use the Leg's Arrival Date.
+        if i == 0:
+            event_date = req.start_date
+        else:
+            event_date = leg.arrival_date
+
         event = TravelEvent(
             trip_id=trip.id,
             title=f"Travel from {prev_city} to {leg.city_name}",
@@ -87,7 +95,7 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
             from_lng=prev_lng,
             to_lat=dest_lat,
             to_lng=dest_lng,
-            start_datetime=leg.arrival_date,
+            start_datetime=event_date,
             transport="plane"
         )
         session.add(event)
@@ -97,7 +105,7 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
         # Move state for next leg
         prev_city = leg.city_name
         prev_lat, prev_lng = dest_lat, dest_lng
-        prev_date = leg.arrival_date
+        prev_date = event_date
         
     session.commit()
     return {"trip_id": trip.id, "event_ids": event_ids}
@@ -197,6 +205,12 @@ def update_event(event_id: int, event_data: dict, session: Session = Depends(get
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
     for key, value in event_data.items():
+        if key == "start_datetime" and isinstance(value, str):
+            try:
+                # Convert ISO string directly to datetime object
+                value = datetime.fromisoformat(value)
+            except ValueError:
+                pass # Fallback or let it fail if invalid format
         setattr(db_event, key, value)
     session.add(db_event)
     session.commit()

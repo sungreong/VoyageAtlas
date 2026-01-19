@@ -795,10 +795,11 @@
 }
 
 .carousel-item {
-  min-width: 320px;
-  width: 320px;
-  height: 80%;
+  min-width: 340px;
+  width: 340px;
+  box-sizing: border-box;
   padding: 0 10px;
+  height: 80%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -806,6 +807,7 @@
   transform: scale(0.8);
   transition: all 0.5s ease;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .carousel-item.active {
@@ -1068,4 +1070,644 @@
   position: relative;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
   animation: scaleIn 0.3s ease-out;
+}
+
+/* Travel Calendar Styles */
+.calendar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.calendar-container {
+  width: 90vw;
+  max-width: 1400px;
+  height: 85vh;
+  background: rgba(10, 20, 30, 0.95);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 242, 255, 0.2);
+}
+
+.close-cal-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.close-cal-btn:hover {
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+/* Year View Grid */
+.year-view-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 months per row */
+  gap: 15px;
+  overflow-y: auto;
+  padding: 10px;
+  height: 100%;
+}
+
+.year-month-cell {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 242, 255, 0.1);
+  transition: transform 0.2s, border-color 0.2s;
+  cursor: pointer;
+  min-height: 200px;
+}
+
+.year-month-cell:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  background: rgba(0, 242, 255, 0.05);
+}
+
+.year-header, .month-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  font-family: 'Orbitron', sans-serif;
+  color: var(--primary);
+}
+
+.year-header button, .month-header button {
+  background: none;
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  color: var(--primary);
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.year-header button:hover, .month-header button:hover {
+  background: rgba(0, 242, 255, 0.2);
+}
+
+.year-header h2, .month-header h2 {
+  font-size: 1.5rem;
+  text-shadow: 0 0 10px var(--primary);
+  margin: 0;
+}
+
+.month-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 100%;
+}
+
+.month-grid.mini {
+  font-size: 0.65rem;
+}
+
+.month-name {
+  text-align: center;
+  color: white;
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.7em;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.days-container {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  /* flex: 1; Remove flex: 1 to prevent forced expansion */
+}
+
+.cal-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  position: relative;
+  font-size: 0.9em;
+  color: #aaa;
+  cursor: default;
+}
+
+.mini .cal-day {
+  /* Remove fixed aspect-ratio to prevent overflow on 6-week months */
+  height: 24px; 
+  width: 100%;
+}
+
+.cal-day:hover:not(.empty) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Travel Indicators */
+.cal-day.event-day {
+  color: #fff;
+  font-weight: bold;
+  background: rgba(0, 242, 255, 0.4);
+  box-shadow: 0 0 5px var(--primary);
+  border-radius: 4px;
+}
+
+.cal-day.in-trip {
+  background: rgba(0, 242, 255, 0.15);
+  color: #fff;
+}
+
+.event-dot {
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* Large Month View */
+.month-view-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.large-month-body {
+    flex: 2;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.large-month-body .days-container {
+    gap: 8px;
+}
+
+.large-month-body .cal-day {
+    min-height: 80px; 
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 8px;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.large-month-body .cal-day.in-trip {
+    background: rgba(0, 242, 255, 0.1);
+    border-color: rgba(0, 242, 255, 0.3);
+}
+
+.large-month-body .cal-day.event-day {
+    background: rgba(0, 242, 255, 0.3);
+    border-color: var(--primary);
+}
+
+.month-events-list {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    border-top: 1px solid rgba(0,242,255,0.3);
+    padding: 15px;
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.month-events-list h3 {
+    margin-top: 0;
+    font-family: 'Orbitron', sans-serif;
+    color: var(--primary);
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.event-list-item {
+    display: flex;
+    gap: 15px;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    align-items: center;
+}
+
+.ev-date {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--primary);
+    font-size: 1.2rem;
+    width: 40px;
+    text-align: center;
+}
+
+.ev-loc {
+    font-weight: bold;
+    color: #fff;
+    width: 100px;
+}
+
+.ev-title {
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+.nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    pointer-events: auto; /* Enable interaction */
+}
+
+.neon-btn-icon {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: 'Orbitron', sans-serif;
+  height: 40px;
+  pointer-events: auto; /* Ensure clickable */
+}
+
+.neon-btn-icon .btn-label {
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.neon-btn-icon:hover {
+  background: rgba(0, 255, 238, 0.1);
+  box-shadow: 0 0 10px rgba(0, 255, 238, 0.3);
+  transform: translateY(-2px);
+}
+
+.neon-btn-icon.active {
+  background: rgba(0, 255, 238, 0.2);
+  box-shadow: 0 0 15px var(--neon-cyan);
+  color: #fff;
+  border-color: #fff;
+}
+
+/* --- Data Management Interface (Enhanced Neon) --- */
+.data-management-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(15px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.data-management-container {
+  width: 90%;
+  max-width: 1200px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 2.5rem;
+  background: rgba(10, 15, 30, 0.6);
+  border: 1px solid rgba(0, 255, 238, 0.3);
+  box-shadow: 0 0 40px rgba(0, 255, 238, 0.15), inset 0 0 20px rgba(0, 255, 238, 0.05);
+  border-radius: 12px;
+}
+
+.dm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid rgba(0, 255, 238, 0.2);
+  padding-bottom: 1.5rem;
+}
+
+.dm-header h2 {
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0, 255, 238, 0.5);
+  margin: 0;
+}
+
+/* Close/Icon Button Styling */
+.icon-btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px; /* Slightly rounded for sci-fi look */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.icon-btn-secondary:hover {
+  background: rgba(255, 51, 102, 0.2); /* Reddish tint for close */
+  border-color: #ff3366;
+  color: #ff3366;
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.4);
+  transform: rotate(90deg); /* Interactive spin */
+}
+
+.dm-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 1rem;
+}
+
+.neon-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px; /* Spacing between rows */
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.neon-table thead th {
+  text-align: left;
+  padding: 1.2rem;
+  color: var(--neon-cyan);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  position: sticky;
+  top: 0;
+  background: rgba(10, 15, 30, 0.98);
+  z-index: 10;
+  border-bottom: 1px solid var(--neon-blue);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+}
+
+.neon-table tbody tr {
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+}
+
+.neon-table tbody tr:hover {
+  background: rgba(0, 255, 238, 0.08); /* More subtle hover */
+  transform: translateX(4px);
+  box-shadow: -4px 0 0 var(--neon-cyan); /* Neon strip on hover */
+}
+
+.neon-table td {
+  padding: 1.2rem;
+  vertical-align: middle;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.neon-table tbody tr td:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.neon-table tbody tr td:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.route-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: #fff;
+}
+
+.route-cell .cities {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+
+.route-cell .arrow {
+  color: var(--neon-cyan);
+  margin: 0 8px;
+}
+
+.event-title-sub {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  font-style: italic;
+}
+
+.media-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 200, 255, 0.15);
+  border: 1px solid var(--neon-blue);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--neon-cyan);
+  transition: all 0.3s;
+}
+
+.media-badge:hover {
+  background: var(--neon-blue);
+  color: #000;
+  box-shadow: 0 0 10px var(--neon-blue);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-start;
+}
+
+.action-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255,255,255,0.7);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.action-btn.edit:hover {
+  border-color: var(--neon-cyan);
+  color: #000;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 15px var(--neon-cyan);
+  transform: scale(1.1);
+}
+
+.action-btn.delete:hover {
+  border-color: #ff3366;
+  color: #fff;
+  background: #ff3366;
+  box-shadow: 0 0 15px #ff3366;
+  transform: scale(1.1);
+}
+
+/* --- Edit/Modal OVERLAY (Focus & Dim Strategy) --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7); /* Darker dim */
+  backdrop-filter: blur(5px);
+  z-index: 2100; /* Higher than DM Overlay (2000) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: scaleIn 0.25s ease-out;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Edit Modal specific overrides */
+.modal-content {
+    background: rgba(10, 15, 30, 0.95);
+    border: 1px solid var(--neon-cyan);
+    box-shadow: 0 0 60px rgba(0, 255, 238, 0.3); /* Stronger glow */
+    border-radius: 12px;
+}
+
+.edit-event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.neon-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--neon-cyan);
+  font-size: 0.9rem;
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.neon-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 255, 238, 0.3);
+  padding: 1rem;
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.neon-input:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  background: rgba(0, 255, 238, 0.05);
+  box-shadow: 0 0 15px rgba(0, 255, 238, 0.15);
+}
+
+textarea.neon-input {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Modal Actions & Buttons */
+.modal-actions {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+/* Explicit Button Styles */
+.neon-btn {
+    padding: 12px 24px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.neon-btn.primary {
+    background: rgba(0, 255, 238, 0.1);
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 238, 0.1);
+}
+
+.neon-btn.primary:hover {
+    background: var(--neon-cyan);
+    color: #000;
+    box-shadow: 0 0 25px var(--neon-cyan);
+    transform: translateY(-2px);
+}
+
+.neon-btn.secondary {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.neon-btn.secondary:hover {
+    border-color: #fff;
+    color: #fff;
+    background: rgba(255,255,255,0.05);
 }

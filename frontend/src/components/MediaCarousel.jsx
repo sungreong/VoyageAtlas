@@ -139,11 +139,13 @@ const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
           <video 
             src={media.url} 
             className={mediaCls}
-            autoPlay={isActive || isFull}
-            muted={!isFull}
-            controls={isFull}
-            loop
-            onClick={(e) => { if(!isActive && !isFull) e.stopPropagation(); }}
+            // Allow controls when active so user can play/unmute
+            controls={isActive || isFull} 
+            // Autoplay only if full screen, or rely on user to play via controls when active
+            // Removing autoPlay for active-only to prevent confusion, or keeping it? 
+            // User said "video doesn't play". Let's give them controls.
+            muted={!isFull && !isActive} // Unmute if active? No, better to start muted if autoplaying, or let user control.
+            // Let's rely on standard controls.
           />
           {isEditMode && !isFull && (
             <button className="delete-overlay-btn" onClick={(e) => handleDelete(e, media.id)}>
@@ -170,7 +172,9 @@ const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
     );
   };
 
-  const itemWidth = 320; 
+  // Adjusted itemWidth to include padding (320px width + 20px padding total = 340px)
+  // This corrects the centering offset.
+  const itemWidth = 340; 
   const trackOffset = -currentIndex * itemWidth + dragOffset;
   const displayIndex = localMediaList.length > 0 ? currentIndex + 1 : 0;
 
@@ -209,6 +213,7 @@ const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
             <div 
                 className="carousel-track" 
                 style={{ 
+                // Fix transformation calculation: ensure correct center alignment
                 transform: `translateX(calc(50% - ${itemWidth / 2}px + ${trackOffset}px))`,
                 transition: isDragging ? 'none' : 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)'
                 }}

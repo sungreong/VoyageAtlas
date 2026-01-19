@@ -5,8 +5,10 @@ import SimpleEventForm from './components/SimpleEventForm';
 import EventManager from './components/EventManager';
 import PanoramaViewer from './components/PanoramaViewer';
 import MediaCarousel from './components/MediaCarousel';
+import TravelCalendar from './components/TravelCalendar';
+import DataManagement from './components/DataManagement';
 import './App.css';
-import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -21,11 +23,15 @@ const App = () => {
   const [carouselData, setCarouselData] = useState(null); // { mediaList, index }
   const [selectedCoords, setSelectedCoords] = useState(null);
   const [showManager, setShowManager] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showDataManagement, setShowDataManagement] = useState(false);
+  const [showEventInfo, setShowEventInfo] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
 
   useEffect(() => {
     fetchEvents();
   }, []);
+
 
   const fetchEvents = async () => {
     try {
@@ -45,6 +51,7 @@ const App = () => {
 
   const handleMarkerClick = (city) => {
     setSelectedCity(city);
+    setShowEventInfo(true);
     // Find the first event for this city to center on the timeline
     const firstEventIndex = events.findIndex(e => e.to_name === city.name);
     if (firstEventIndex !== -1) setCurrentEventIndex(firstEventIndex);
@@ -140,32 +147,34 @@ const App = () => {
         <button className="log-btn" onClick={() => setShowManager(true)}>
           VIEW JOURNEY LOG
         </button>
-        <button className="add-toggle-btn" style={{ marginLeft: '10px' }} onClick={() => document.getElementById('csv-upload').click()}>
-          IMPORT CSV
+        <button 
+          className={`neon-btn-icon ${showCalendar ? 'active' : ''}`}
+          onClick={() => setShowCalendar(!showCalendar)}
+          title="Calendar View"
+        >
+          <Calendar size={20} />
+          <span className="btn-label">CALENDAR</span>
         </button>
-        <input 
-          id="csv-upload" 
-          type="file" 
-          hidden 
-          accept=".csv" 
-          onChange={async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              const formData = new FormData();
-              formData.append('file', file);
-              try {
-                await axios.post(`${API_BASE}/import/csv`, formData);
-                fetchEvents();
-              } catch (err) {
-                console.error("Import failed", err);
-              }
-            }
-          }} 
-        />
+        <button 
+          className={`neon-btn-icon ${showDataManagement ? 'active' : ''}`}
+          onClick={() => setShowDataManagement(!showDataManagement)}
+          title="Manage Data"
+        >
+          <Database size={20} />
+          <span className="btn-label">MANAGE</span>
+        </button>
       </div>
 
+      {showDataManagement && (
+        <DataManagement 
+          events={events}
+          onClose={() => setShowDataManagement(false)} 
+          onRefresh={fetchEvents} 
+        />
+      )}
+
       {showForm && (
-        <SimpleEventForm onAddSimpleTrip={handleAddSimpleTrip} />
+        <SimpleEventForm onAddSimpleTrip={handleAddSimpleTrip} onClose={() => setShowForm(false)} />
       )}
 
       {showManager && (
@@ -176,11 +185,11 @@ const App = () => {
         />
       )}
 
-      {(selectedCity || (currentEventIndex >= 0 && events[currentEventIndex])) && (
+      {(showEventInfo && (selectedCity || (currentEventIndex >= 0 && events[currentEventIndex]))) && (
         <div className="media-preview glass-panel wide-panel">
           <div className="panel-header">
             <h3>{selectedCity ? selectedCity.name : events[currentEventIndex].to_name}</h3>
-            {selectedCity && <button className="close-mini-btn" onClick={() => setSelectedCity(null)}>×</button>}
+            <button className="close-mini-btn" onClick={() => setShowEventInfo(false)}>×</button>
           </div>
 
           <div className="timeline-container">
@@ -223,6 +232,13 @@ const App = () => {
           initialIndex={carouselData.index} 
           eventId={carouselData.eventId} 
           onClose={() => setCarouselData(null)} 
+        />
+      )}
+
+      {showCalendar && (
+        <TravelCalendar 
+            events={events} 
+            onClose={() => setShowCalendar(false)} 
         />
       )}
 

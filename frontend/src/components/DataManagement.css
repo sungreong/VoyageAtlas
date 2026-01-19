@@ -1,0 +1,229 @@
+.data-management-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85); /* Darker backdrop */
+  z-index: 200; /* Higher than other modals */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(5px);
+}
+
+.data-management-modal {
+  width: 800px;
+  max-width: 95vw;
+  background: rgba(5, 5, 5, 0.95);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.dm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.3);
+  background: rgba(0, 242, 255, 0.05);
+}
+
+.dm-title {
+  font-family: 'Orbitron', sans-serif;
+  color: var(--primary);
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+
+.dm-close {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.dm-close:hover {
+  color: var(--primary);
+}
+
+.dm-content {
+  display: flex;
+  height: 400px;
+}
+
+.dm-section {
+  flex: 1;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dm-section.left {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(0, 242, 255, 0.02) 0%, transparent 100%);
+}
+
+.dm-section-title {
+  font-family: 'Orbitron', sans-serif;
+  color: #fff;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dm-subtitle {
+  font-size: 0.8rem;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.date-pickers {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.date-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.date-field label {
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-family: 'Orbitron', sans-serif;
+}
+
+.date-field input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  padding: 10px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.date-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.dm-btn {
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  border: none;
+  margin-top: auto;
+}
+
+.dm-btn.primary {
+  background: var(--primary);
+  color: #000;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+}
+
+.dm-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(0, 242, 255, 0.5);
+}
+
+.dm-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.dm-btn.secondary:hover {
+  background: rgba(0, 242, 255, 0.1);
+}
+
+.dm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.drop-zone {
+  flex: 1;
+  border: 2px dashed var(--glass-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.02);
+  min-height: 150px;
+  text-align: center;
+  padding: 20px;
+}
+
+.drop-zone:hover, .drop-zone.active {
+  border-color: var(--primary);
+  background: rgba(0, 242, 255, 0.05);
+}
+
+.drop-text {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.drop-subtext {
+  color: var(--primary);
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+
+.file-name {
+  color: var(--primary);
+  font-weight: bold;
+  padding: 5px 10px;
+  background: rgba(0, 242, 255, 0.1);
+  border-radius: 4px;
+}
+
+.warning-box {
+  background: rgba(255, 200, 0, 0.1);
+  border-left: 3px solid #ffc800;
+  padding: 10px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: #fff;
+  display: flex;
+  gap: 10px;
+  align-items: start;
+}
+
+.status-msg {
+  text-align: center;
+  padding: 10px;
+  font-size: 0.9rem;
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 1px;
+}
+
+.status-msg.success { color: #00ff88; }
+.status-msg.error { color: #ff4d4d; }
