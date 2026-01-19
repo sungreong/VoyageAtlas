@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8888:8000" # 외부(Host) 포트 8888로 변경
+    environment:
+      - DATABASE_URL=sqlite:///./voyage.db
+      - MINIO_ENDPOINT=http://minio:9000 # 내부 네트워크에서는 서비스명과 내부 포트 사용
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=voyage-media
+    depends_on:
+      - minio
+    networks:
+      - voyage-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3333:5173" # 외부(Host) 포트 3333으로 변경
+    environment:
+      - VITE_API_URL=http://localhost:8888 # 브라우저에서 접근할 때 사용할 외부 주소
+    networks:
+      - voyage-net
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9999:9000" # 외부(Host) 포트 9999로 변경
+      - "9991:9001" # 외부(Host) 포트 9991로 변경
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - voyage-net
+
+networks:
+  voyage-net:
+    driver: bridge
+
+volumes:
+  minio_data:

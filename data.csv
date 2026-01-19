@@ -1,0 +1,6 @@
+start_datetime,from_name,to_name,from_lat,from_lng,to_lat,to_lng,title,note,media_url
+2025-03-01 10:00:00,Seoul,Tokyo,37.5665,126.9780,35.6762,139.6503,Tokyo Trip Day 1,First stop,https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg
+2025-03-05 14:00:00,Tokyo,Paris,35.6762,139.6503,48.8566,2.3522,Long Flight to Europe,Paris awaits,https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg
+2025-03-10 09:00:00,Paris,New York,48.8566,2.3522,40.7128,-74.0060,Atlantic Crossing,Big Apple,https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg
+2025-03-15 11:30:00,New York,Los Angeles,40.7128,-74.0060,34.0522,-118.2437,Coast to Coast,California Dreaming,https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg
+2025-03-20 22:00:00,Los Angeles,Seoul,34.0522,-118.2437,37.5665,126.9780,Heading Home,End of journey,https://photo-sphere-viewer-data.netlify.app/assets/sphere.jpg
