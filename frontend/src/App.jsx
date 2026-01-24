@@ -7,8 +7,9 @@ import PanoramaViewer from './components/PanoramaViewer';
 import MediaCarousel from './components/MediaCarousel';
 import TravelCalendar from './components/TravelCalendar';
 import DataManagement from './components/DataManagement';
+import ExportImportModal from './components/ExportImportModal';
 import './App.css';
-import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2 } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -25,6 +26,7 @@ const App = () => {
   const [showManager, setShowManager] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
+  const [showExportImport, setShowExportImport] = useState(false);
   const [showEventInfo, setShowEventInfo] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
 
@@ -163,12 +165,27 @@ const App = () => {
           <Database size={20} />
           <span className="btn-label">MANAGE</span>
         </button>
+        <button 
+          className={`neon-btn-icon ${showExportImport ? 'active' : ''}`}
+          onClick={() => setShowExportImport(!showExportImport)}
+          title="Export/Import Data"
+        >
+          <Share2 size={20} />
+          <span className="btn-label">PORTABILITY</span>
+        </button>
       </div>
 
       {showDataManagement && (
         <DataManagement 
           events={events}
           onClose={() => setShowDataManagement(false)} 
+          onRefresh={fetchEvents} 
+        />
+      )}
+
+      {showExportImport && (
+        <ExportImportModal 
+          onClose={() => setShowExportImport(false)} 
           onRefresh={fetchEvents} 
         />
       )}
@@ -215,6 +232,8 @@ const App = () => {
                       />
                       {media.media_type === 'pano_image' && <span className="pano-badge">360°</span>}
                       {media.media_type === 'video' && <span className="pano-badge video-badge">VIDEO</span>}
+                      {media.city && <span className="intelligence-badge location"><MapPin size={8} /> {media.city}</span>}
+                      {media.captured_at && !media.city && <span className="intelligence-badge time">{new Date(media.captured_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
                     </div>
                   ))}
                   {(!visit.media_list || visit.media_list.length === 0) && <div className="no-media">NO DATA DETECTED</div>}

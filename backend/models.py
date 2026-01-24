@@ -15,6 +15,13 @@ class EventMedia(SQLModel, table=True):
     url: str
     media_type: str = "image"  # pano_image, image, video
     
+    # Intelligence fields
+    captured_at: Optional[datetime] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    
     event: "TravelEvent" = Relationship(back_populates="media_list")
 
 class TravelEvent(SQLModel, table=True):

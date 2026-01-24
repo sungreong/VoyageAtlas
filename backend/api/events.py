@@ -11,6 +11,10 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 import urllib.parse
 import json
+import tempfile
+import shutil
+from utils.media_analyzer import analyze_media
+from utils.clustering import cluster_media_to_suggestions
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -23,6 +27,12 @@ class EventMediaRead(BaseModel):
     url: str
     media_type: str
     event_id: int
+    # Intelligence fields
+    captured_at: Optional[datetime] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class TravelEventRead(BaseModel):
@@ -105,7 +115,7 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
         # Move state for next leg
         prev_city = leg.city_name
         prev_lat, prev_lng = dest_lat, dest_lng
-        prev_date = event_date
+        # prev_date = event_date # Assigned but unused, kept for logical tracking
         
     session.commit()
     return {"trip_id": trip.id, "event_ids": event_ids}
@@ -128,7 +138,7 @@ async def upload_media(event_id: int, files: List[UploadFile] = File(...), sessi
     # Ensure bucket exists
     try:
         s3.head_bucket(Bucket=bucket_name)
-    except:
+    except Exception:
         s3.create_bucket(Bucket=bucket_name)
         # Apply public read policy to new bucket
         policy = {
@@ -147,49 +157,87 @@ async def upload_media(event_id: int, files: List[UploadFile] = File(...), sessi
     new_media_list = []
     print(f"DEBUG: upload_media started for event {event_id} with {len(files)} files")
     for file in files:
-        await file.seek(0)
-        file_path = f"events/{event_id}/{file.filename}"
-        s3.upload_fileobj(file.file, bucket_name, file_path)
-        print(f"DEBUG: File {file.filename} uploaded to S3 path: {file_path}")
-        
-        # URL encode the filename to handle spaces/special chars
-        encoded_filename = urllib.parse.quote(file.filename)
-        encoded_file_path = f"events/{event_id}/{encoded_filename}"
-        
-        # Use request URL or ENV to determine public access URL
-        # For PoC, we still use localhost:9999 but allow override via ENV
-        public_url_base = os.getenv('MEDIA_PUBLIC_URL', 'http://localhost:9999')
-        
-        # Determine media type
-        lower_filename = file.filename.lower()
-        if "pano" in lower_filename:
-            m_type = "pano_image"
-        elif any(lower_filename.endswith(ext) for ext in ['.mp4', '.mov', '.avi', '.mkv']):
-            m_type = "video"
-        else:
-            m_type = "image"
+        # Create a temporary file to analyze it locally before uploading to S3
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # 1. Intelligence: Analyze metadata
+            intelligence = analyze_media(tmp_path)
+            print(f"DEBUG: Intelligence for {file.filename}: {intelligence}")
+
+            # 2. Upload to S3
+            with open(tmp_path, 'rb') as f_data:
+                s3.upload_fileobj(f_data, bucket_name, f"events/{event_id}/{file.filename}")
             
-        media = EventMedia(
-            event_id=event_id,
-            url=f"{public_url_base}/{bucket_name}/{encoded_file_path}", # Direct Minio access
-            media_type=m_type
-        )
-        session.add(media)
-        # We need to refresh to get ID if needed, but since we are iterating, we can flush or just wait for commit.
-        # However, flushing inside loop is slow.
-        # But we need to return objects with IDs.
-        # Let's commit once at end, then refresh created objects or just refresh all?
-        # Alternatively, add to list, commit, then list will effectively have IDs if we refresh them or just reload.
-        new_media_list.append(media)
-        print(f"DEBUG: Created EventMedia record: {media.url}")
+            # URL encode the filename
+            encoded_filename = urllib.parse.quote(file.filename)
+            encoded_file_path = f"events/{event_id}/{encoded_filename}"
+            public_url_base = os.getenv('MEDIA_PUBLIC_URL', 'http://localhost:9999')
+            
+            # Determine media type
+            lower_filename = file.filename.lower()
+            if "pano" in lower_filename:
+                m_type = "pano_image"
+            elif any(lower_filename.endswith(ext) for ext in ['.mp4', '.mov', '.avi', '.mkv']):
+                m_type = "video"
+            else:
+                m_type = "image"
+                
+            media = EventMedia(
+                event_id=event_id,
+                url=f"{public_url_base}/{bucket_name}/{encoded_file_path}",
+                media_type=m_type,
+                captured_at=intelligence.get("captured_at"),
+                lat=intelligence.get("lat"),
+                lng=intelligence.get("lng"),
+                city=intelligence.get("city"),
+                country=intelligence.get("country")
+            )
+            session.add(media)
+            new_media_list.append(media)
+            
+        finally:
+            # Cleanup temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
     
     session.commit()
-    # Refresh objects to get IDs
     for media in new_media_list:
         session.refresh(media)
         
-    print(f"DEBUG: upload_media committed for event {event_id}")
     return new_media_list
+
+@router.post("/analyze")
+async def analyze_files(files: List[UploadFile] = File(...)):
+    """
+    Intelligent bulk analysis for suggestion workflow.
+    Takes multiple files, extracts metadata, and clusters them into travel event suggestions.
+    """
+    analyzed_data = []
+    for file in files:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+        
+        try:
+            intelligence = analyze_media(tmp_path)
+            analyzed_data.append({
+                "filename": file.filename,
+                "intelligence": intelligence
+            })
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+                
+    # Use clustering logic to group into suggested events
+    suggestions = cluster_media_to_suggestions(analyzed_data)
+    
+    return {
+        "analyzed_count": len(files),
+        "suggestions": suggestions
+    }
 
 
 @router.post("/", response_model=TravelEvent)
@@ -267,10 +315,101 @@ def delete_media(media_id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
+@router.get("/export")
+def export_data(
+    start_date: Optional[datetime] = None, 
+    end_date: Optional[datetime] = None, 
+    session: Session = Depends(get_session)
+):
+    query = select(TravelEvent).options(selectinload(TravelEvent.media_list))
+    
+    if start_date:
+        query = query.where(TravelEvent.start_datetime >= start_date)
+    if end_date:
+        query = query.where(TravelEvent.start_datetime <= end_date)
+        
+    events = session.exec(query.order_by(TravelEvent.start_datetime)).all()
+    
+    # Group by Trip
+    trips_data = {}
+    for event in events:
+        trip_id = event.trip_id
+        if trip_id not in trips_data:
+            # Get Trip title
+            trip = session.get(Trip, trip_id)
+            trips_data[trip_id] = {
+                "title": trip.title if trip else "Unnamed Trip",
+                "events": []
+            }
+        
+        # Serialize event
+        event_dict = {
+            "title": event.title,
+            "from_name": event.from_name,
+            "to_name": event.to_name,
+            "from_lat": event.from_lat,
+            "from_lng": event.from_lng,
+            "to_lat": event.to_lat,
+            "to_lng": event.to_lng,
+            "start_datetime": event.start_datetime.isoformat(),
+            "transport": event.transport,
+            "note": event.note
+        }
+        trips_data[trip_id]["events"].append(event_dict)
+        
+    return {
+        "version": "1.0",
+        "export_date": datetime.now().isoformat(),
+        "trips": list(trips_data.values())
+    }
+
+@router.post("/import")
+async def import_data(data: dict, session: Session = Depends(get_session)):
+    if "trips" not in data:
+        raise HTTPException(status_code=400, detail="Invalid data format: 'trips' key missing")
+    
+    import_count_trips = 0
+    import_count_events = 0
+    
+    for trip_data in data["trips"]:
+        # Create Trip
+        new_trip = Trip(title=trip_data.get("title", "Imported Trip"))
+        session.add(new_trip)
+        session.flush() # Get Trip ID
+        import_count_trips += 1
+        
+        for e_data in trip_data.get("events", []):
+            new_event = TravelEvent(
+                trip_id=new_trip.id,
+                title=e_data.get("title"),
+                from_name=e_data.get("from_name"),
+                to_name=e_data.get("to_name"),
+                from_lat=e_data.get("from_lat"),
+                from_lng=e_data.get("from_lng"),
+                to_lat=e_data.get("to_lat"),
+                to_lng=e_data.get("to_lng"),
+                start_datetime=datetime.fromisoformat(e_data.get("start_datetime")),
+                transport=e_data.get("transport", "plane"),
+                note=e_data.get("note")
+            )
+            session.add(new_event)
+            import_count_events += 1
+            
+    session.commit()
+    return {
+        "status": "success",
+        "imported_trips": import_count_trips,
+        "imported_events": import_count_events
+    }
+
 @router.delete("/all/clear")
 def delete_all_events(session: Session = Depends(get_session)):
     events = session.exec(select(TravelEvent)).all()
     for event in events:
         session.delete(event)
+    # Also delete orphan trips
+    trips = session.exec(select(Trip)).all()
+    for trip in trips:
+        session.delete(trip)
     session.commit()
     return {"ok": True}

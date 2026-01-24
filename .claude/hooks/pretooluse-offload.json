@@ -1,0 +1,17 @@
+{
+  "name": "pretooluse-offload",
+  "event": "PreToolUse",
+  "conditions": {
+    "any_of": [
+      { "tool": "Edit" },
+      { "tool": "Write" },
+      { "tool": "Bash" },
+      { "tool": "Glob" },
+      { "tool": "Grep" }
+    ]
+  },
+  "action": {
+    "type": "respond",
+    "message": "Direct tool execution is blocked. Generate an Offload Task Contract (task_contract.md and task_contract.json) instead."
+  }
+}

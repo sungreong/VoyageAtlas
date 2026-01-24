@@ -267,8 +267,9 @@ const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
             {localMediaList[currentIndex] ? (
                <>
                  FILE_ID: {localMediaList[currentIndex].id || 'S001'} | 
-                 TYPE: {localMediaList[currentIndex].media_type.toUpperCase()} | 
-                 COORD_LOCK: {localMediaList[currentIndex].event_id}
+                 {localMediaList[currentIndex].city ? ` LOC: ${localMediaList[currentIndex].city.toUpperCase()}, ${localMediaList[currentIndex].country?.toUpperCase()} |` : ''}
+                 {localMediaList[currentIndex].captured_at ? ` TIME: ${new Date(localMediaList[currentIndex].captured_at).toLocaleString()} |` : ''}
+                 TYPE: {localMediaList[currentIndex].media_type.toUpperCase()}
                </>
             ) : "NO SELECTION"}
           </div>

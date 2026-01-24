@@ -5,11 +5,13 @@ from api.events import router as events_router
 from api.importer import router as importer_router
 from database import create_db_and_tables
 from init_storage import init_minio
+from migrate_db import migrate
 
 app = FastAPI(title="VoyageAtlas API")
 
 @app.on_event("startup")
 def on_startup():
+    migrate() # Run migration first to ensure new columns exist
     create_db_and_tables()
     init_minio()
 
