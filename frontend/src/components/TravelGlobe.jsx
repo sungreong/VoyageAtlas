@@ -216,9 +216,26 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
     }
   }, [currentEventIndex, isPlaying, speed, events]); // Added speed and events dependency
 
+  // Handle Window Resize
+  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <Globe
       ref={globeEl}
+      width={dimensions.width}
+      height={dimensions.height}
       globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
       backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"

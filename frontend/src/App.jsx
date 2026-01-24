@@ -29,6 +29,10 @@ const App = () => {
   const [showExportImport, setShowExportImport] = useState(false);
   const [showEventInfo, setShowEventInfo] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
+  
+  // Upload related state
+  const fileInputRef = React.useRef(null);
+  const [uploadingEventId, setUploadingEventId] = useState(null);
 
   useEffect(() => {
     fetchEvents();
@@ -57,6 +61,34 @@ const App = () => {
     // Find the first event for this city to center on the timeline
     const firstEventIndex = events.findIndex(e => e.to_name === city.name);
     if (firstEventIndex !== -1) setCurrentEventIndex(firstEventIndex);
+  };
+
+  const handleUploadClick = (eventId) => {
+    setUploadingEventId(eventId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !uploadingEventId) return;
+
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(f => formData.append('files', f));
+      
+      console.log(`DEBUG: Uploading ${files.length} files to event ${uploadingEventId}`);
+      await axios.post(`${API_BASE}/events/${uploadingEventId}/media`, formData);
+      
+      // Refresh events to show new media
+      await fetchEvents();
+      
+      // Reset state
+      setUploadingEventId(null);
+      e.target.value = ''; // Clear input for next upload
+    } catch (err) {
+      console.error("Failed to upload media", err);
+      alert("미디어 업로드에 실패했습니다.");
+    }
   };
 
   const handleAddSimpleTrip = async (tripData, legFiles) => {
@@ -236,7 +268,16 @@ const App = () => {
                       {media.captured_at && !media.city && <span className="intelligence-badge time">{new Date(media.captured_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
                     </div>
                   ))}
-                  {(!visit.media_list || visit.media_list.length === 0) && <div className="no-media">NO DATA DETECTED</div>}
+                  {(!visit.media_list || visit.media_list.length === 0) && (
+                    <div 
+                      className="no-media clickable-upload"
+                      onClick={() => handleUploadClick(visit.id)}
+                      title="Click to add photos/videos"
+                    >
+                      <Plus size={16} style={{ marginBottom: '5px' }} />
+                      NO DATA DETECTED - CLICK TO ADD MEDIA
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -288,6 +329,15 @@ const App = () => {
           </select>
         </div>
       </div>
+      {/* Hidden file input for uploads */}
+      <input 
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        multiple
+        accept="image/*,video/*"
+        onChange={handleFileSelect}
+      />
     </div>
   );
 };
