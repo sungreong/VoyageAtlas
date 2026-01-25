@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calendar, ArrowUpDown } from 'lucide-react';
+import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calendar, ArrowUpDown, Globe } from 'lucide-react';
 import axios from 'axios';
 import './EventManager.css';
+import { calculateDistance, formatDistance } from '../utils';
 
 const API_BASE = '/api';
 
@@ -41,6 +42,15 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
         return new Date(trip.events[0].start_datetime);
     }
     return new Date(trip.created_at); // Fallback
+  };
+
+  const getTripTotalDistance = (trip) => {
+      if (!trip.events) return 0;
+      let total = 0;
+      trip.events.forEach(ev => {
+          total += calculateDistance(ev.from_lat, ev.from_lng, ev.to_lat, ev.to_lng);
+      });
+      return total;
   };
 
   const sortedTrips = [...trips].sort((a, b) => {
@@ -99,7 +109,13 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
                    <Calendar size={12} style={{marginRight: 4}}/>
                    {getTripDate(trip).toLocaleDateString()}
                 </span>
-                <span className="trip-badge">{trip.events.length} LEGS</span>
+                <span className="trip-badges">
+                    <span className="trip-badge">{trip.events.length} LEGS</span>
+                    <span className="trip-distance-badge">
+                        <Globe size={10} style={{marginRight:3}}/>
+                        {formatDistance(getTripTotalDistance(trip))} KM
+                    </span>
+                </span>
               </div>
             </div>
             {/* We no longer show inline expanded events details here. 

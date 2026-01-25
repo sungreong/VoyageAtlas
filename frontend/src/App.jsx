@@ -12,6 +12,7 @@ import './App.css';
 import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2 } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
 import './components/HUD.css';
+import { calculateDistance, formatDistance } from './utils';
 
 const API_BASE = '/api';
 
@@ -28,6 +29,7 @@ const App = () => {
   const [selectedCoords, setSelectedCoords] = useState(null);
   const [showManager, setShowManager] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [totalOdysseyDistance, setTotalOdysseyDistance] = useState(0);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
   const [showEventInfo, setShowEventInfo] = useState(false);
@@ -38,6 +40,19 @@ const App = () => {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // Calculate Total Odyssey Distance whenever trips change
+  useEffect(() => {
+     let total = 0;
+     trips.forEach(trip => {
+         if(trip.events && trip.events.length > 0) {
+             trip.events.forEach((ev, idx) => {
+                 total += calculateDistance(ev.from_lat, ev.from_lng, ev.to_lat, ev.to_lng);
+             });
+         }
+     });
+     setTotalOdysseyDistance(total);
+  }, [trips]);
 
   const fetchEvents = async () => {
     try {
@@ -200,6 +215,14 @@ const App = () => {
          <div className="hud-item">
            <SkipForward size={18} /> <span>DEST: {events[currentEventIndex]?.to_name || 'N/A'}</span>
          </div>
+       </div>
+
+       {/* Top Center: Total Odyssey Distance */}
+       <div className="hud-overlay top-center hud-font">
+          <div className="hud-global-distance-panel glass-panel">
+             <div className="total-label">TOTAL DISTANCE</div>
+             <div className="total-value">{formatDistance(totalOdysseyDistance)} KM</div>
+          </div>
        </div>
 
        {/* Top Right Menu */}

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Calendar, MapPin, Plus, Camera, ArrowRight, Plane, Globe, Trash2 } from 'lucide-react';
+import { X, Calendar, MapPin, Plus, Camera, ArrowRight, Plane, Globe, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import './CreateOdysseyModal.layout.css';
 import './CreateOdysseyModal.form.css';
 import './CreateOdysseyModal.itinerary.css'; 
@@ -9,6 +9,56 @@ const HUD_CYAN = '#00f3ff';
 const HUD_DARK = 'rgba(10, 20, 30, 0.95)';
 
 const FREQUENT_CITIES = ['Seoul', 'Tokyo', 'Osaka', 'New York', 'Paris', 'London', 'Bangkok', 'Singapore'];
+
+// City Coordinates for Distance Calculation
+const CITY_COORDINATES = {
+    'seoul': { lat: 37.5665, lng: 126.9780 },
+    'tokyo': { lat: 35.6762, lng: 139.6503 },
+    'osaka': { lat: 34.6937, lng: 135.5023 },
+    'new york': { lat: 40.7128, lng: -74.0060 },
+    'paris': { lat: 48.8566, lng: 2.3522 },
+    'london': { lat: 51.5074, lng: -0.1278 },
+    'bangkok': { lat: 13.7563, lng: 100.5018 },
+    'singapore': { lat: 1.3521, lng: 103.8198 },
+    'san francisco': { lat: 37.7749, lng: -122.4194 },
+    'los angeles': { lat: 34.0522, lng: -118.2437 },
+    'beijing': { lat: 39.9042, lng: 116.4074 },
+    'shanghai': { lat: 31.2304, lng: 121.4737 },
+    'sydney': { lat: -33.8688, lng: 151.2093 },
+    'hong kong': { lat: 22.3193, lng: 114.1694 },
+    'dubai': { lat: 25.2048, lng: 55.2708 },
+    'toronto': { lat: 43.6510, lng: -79.3470 },
+    'berlin': { lat: 52.5200, lng: 13.4050 },
+    'rome': { lat: 41.9028, lng: 12.4964 },
+    'moscow': { lat: 55.7558, lng: 37.6173 },
+    'mumbai': { lat: 19.0760, lng: 72.8777 }
+};
+
+const calculateDistance = (city1, city2) => {
+    if (!city1 || !city2) return null;
+    const c1 = CITY_COORDINATES[city1.toLowerCase()];
+    const c2 = CITY_COORDINATES[city2.toLowerCase()];
+    
+    if (!c1 || !c2) return null;
+
+    const R = 6371; // km
+    const dLat = (c2.lat - c1.lat) * Math.PI / 180;
+    const dLon = (c2.lng - c1.lng) * Math.PI / 180;
+    const lat1 = c1.lat * Math.PI / 180;
+    const lat2 = c2.lat * Math.PI / 180;
+
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return Math.round(R * c);
+};
+
+const validateDate = (dateStr) => {
+    // Basic regex for YYYY-MM-DD
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateStr) return true; // Allow empty initially (or handle required elsewhere)
+    return regex.test(dateStr);
+};
 
 const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
   const [tripType, setTripType] = useState('round'); // 'one-way' | 'round'
@@ -78,10 +128,24 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
       alert("Please fill in all required fields (Title, Start City, Start Date)");
       return;
     }
+    
+    if (!validateDate(startDate)) {
+       alert("Invalid Start Date Format. Please use YYYY-MM-DD.");
+       return;
+    }
+    if (tripType === 'round' && endDate && !validateDate(endDate)) {
+        alert("Invalid Return Date Format. Please use YYYY-MM-DD.");
+        return;
+    }
+
     for (let leg of legs) {
       if (!leg.destination || !leg.date) {
         alert("Please complete all itinerary legs");
         return;
+      }
+      if (!validateDate(leg.date)) {
+         alert(`Invalid Date Format for Waypoint ${leg.id}. Please use YYYY-MM-DD.`);
+         return;
       }
     }
 
@@ -201,8 +265,11 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                             const dropdown = document.getElementById('city-chips-dropdown');
                             if(dropdown) dropdown.style.display = 'flex';
                         }}
-                        className="hud-input"
+                        className={`hud-input ${!validateDate(startDate) ? 'invalid-input' : ''}`} // Assuming you might have class for invalid, but using warning below mainly
                     />
+                    {CITY_COORDINATES[startCity.toLowerCase()] && (
+                        <div className="input-valid-indicator"><CheckCircle size={14} /></div>
+                    )}
                     
                     {/* Floating Chips Dropdown */}
                     <div id="city-chips-dropdown" className="city-chips floating-chips">
@@ -240,6 +307,11 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                             onChange={e => setStartDate(e.target.value)}
                             className="hud-input date-typing-input"
                         />
+                        {!validateDate(startDate) && startDate.length > 0 && (
+                            <div className="validation-warning">
+                                <AlertCircle size={12}/> YYYY-MM-DD format required
+                            </div>
+                        )}
                         <input 
                             type="date"
                             ref={startDatePickerRef}
@@ -266,6 +338,11 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                                     onChange={e => setEndDate(e.target.value)}
                                     className="hud-input date-typing-input"
                                 />
+                                {!validateDate(endDate) && endDate.length > 0 && (
+                                    <div className="validation-warning">
+                                        <AlertCircle size={12}/> YYYY-MM-DD format required
+                                    </div>
+                                )}
                                 <input 
                                     type="date"
                                     ref={endDatePickerRef}
@@ -311,6 +388,23 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                             className="hud-input glass-input"
                         />
                         
+                        {/* Distance Badge */}
+                        {(() => {
+                            // Calculate distance from previous point
+                            // If index 0, from startCity. If index > 0, from legs[index-1].destination
+                            const prevCity = index === 0 ? startCity : legs[index - 1].destination;
+                            const dist = calculateDistance(prevCity, leg.destination);
+                            
+                            if (dist !== null) {
+                                return (
+                                    <div className="distance-badge">
+                                        {dist.toLocaleString()} km
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
+                        
                         {/* Floating Chips Dropdown for Leg */}
                         <div id={`leg-dropdown-${leg.id}`} className="city-chips floating-chips">
                             {FREQUENT_CITIES.map(city => (
@@ -346,6 +440,11 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                            className="hud-input glass-input date-typing-input"
                            style={{paddingLeft: '38px', fontSize: '0.85rem'}}
                         />
+                        {!validateDate(leg.date) && leg.date.length > 0 && (
+                            <div className="validation-warning">
+                                <AlertCircle size={12}/> Invalid Format
+                            </div>
+                        )}
                         <input 
                            type="date"
                            id={`leg-picker-${leg.id}`}

@@ -144,9 +144,29 @@
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: bold;
-  margin-left: auto; /* Push to right if needed */
   font-family: 'Orbitron', sans-serif;
   border: 1px solid rgba(0, 242, 255, 0.3);
+}
+
+.trip-badges {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.trip-distance-badge {
+  background: rgba(112, 0, 255, 0.15); 
+  color: #e0b0ff; /* Bright Lavender for better visibility */
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-family: 'Orbitron', sans-serif;
+  border: 1px solid rgba(112, 0, 255, 0.5);
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(112, 0, 255, 0.5);
 }
 
 /* Sort Button */
