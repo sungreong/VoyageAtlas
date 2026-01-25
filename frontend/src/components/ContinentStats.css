@@ -1,0 +1,115 @@
+.continent-stats-panel {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 280px;
+    background: rgba(10, 15, 30, 0.65); /* Darker glass */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    border-radius: 16px;
+    padding: 20px;
+    color: #fff;
+    z-index: 100;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+    font-family: 'Rajdhani', sans-serif;
+    animation: slideInLeft 0.5s ease-out;
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translate(-50px, -50%); }
+    to { opacity: 1; transform: translate(0, -50%); }
+}
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.stats-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #00f2ff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+}
+
+.close-stats-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.3s;
+}
+
+.close-stats-btn:hover {
+    color: #fff;
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1rem;
+    position: relative;
+    padding: 5px 0;
+}
+
+.stat-row::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0%;
+    height: 1px;
+    background: rgba(0, 242, 255, 0.2);
+    transition: width 1s ease-out;
+}
+
+.stat-row.animate::after {
+    width: 100%;
+}
+
+.continent-name {
+    color: #e0e0e0;
+    font-weight: 500;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+}
+
+.dots-leader {
+    flex-grow: 1;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.2);
+    margin: 0 10px;
+    position: relative;
+    top: -4px;
+}
+
+.visit-count {
+    color: #00f2ff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-shadow: 0 0 5px rgba(0, 242, 255, 0.4);
+}
+
+.no-data {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    font-size: 0.9rem;
+    padding: 20px 0;
+}

@@ -201,6 +201,20 @@ def update_trip(trip_id: int, trip_update: TripUpdate, session: Session = Depend
 
 
 
+@router.delete("/trips/{trip_id}")
+def delete_trip(trip_id: int, session: Session = Depends(get_session)):
+    trip = session.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    # Manually delete events to ensure cascade
+    for event in trip.events:
+        session.delete(event)
+        
+    session.delete(trip)
+    session.commit()
+    return {"ok": True}
+
 @router.post("/{event_id}/media")
 async def upload_media(event_id: int, files: List[UploadFile] = File(...), session: Session = Depends(get_session)):
     db_event = session.get(TravelEvent, event_id)

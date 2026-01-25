@@ -197,3 +197,23 @@
   background: rgba(255, 255, 255, 0.2);
   margin: 0 5px;
 }
+
+.delete-trip-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-left: auto; /* Push to right if inside flex container */
+}
+
+.delete-trip-btn:hover {
+  background: rgba(255, 50, 50, 0.2);
+  color: #ff3333;
+  transform: scale(1.1);
+}

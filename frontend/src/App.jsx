@@ -8,8 +8,9 @@ import MediaCarousel from './components/MediaCarousel';
 import TravelCalendar from './components/TravelCalendar';
 import DataManagement from './components/DataManagement';
 import ExportImportModal from './components/ExportImportModal';
+import ContinentStats from './components/ContinentStats';
 import './App.css';
-import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2 } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2, Globe } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
 import './components/HUD.css';
 import { calculateDistance, formatDistance } from './utils';
@@ -32,6 +33,7 @@ const App = () => {
   const [totalOdysseyDistance, setTotalOdysseyDistance] = useState(0);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [showEventInfo, setShowEventInfo] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
   const [selectedTripId, setSelectedTripId] = useState(null); 
@@ -268,6 +270,14 @@ const App = () => {
            <Share2 size={20} />
            <span className="btn-label">PORTABILITY</span>
          </button>
+         <button 
+           className={`neon-btn-icon ${showStats ? 'active' : ''}`}
+           onClick={() => setShowStats(!showStats)}
+           title="Travel Statistics"
+         >
+           <Globe size={20} />
+           <span className="btn-label">STATS</span>
+         </button>
        </div>
        
        {showForm && (
@@ -275,6 +285,13 @@ const App = () => {
            onClose={() => setShowForm(false)}
            onAddSimpleTrip={handleAddSimpleTrip}
            selectedCoords={selectedCoords}
+         />
+       )}
+
+       {showStats && (
+         <ContinentStats 
+            events={events}
+            onClose={() => setShowStats(false)}
          />
        )}
 

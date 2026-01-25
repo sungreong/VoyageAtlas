@@ -36,6 +36,19 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
     }
   };
 
+  const handleDeleteTrip = async (e, tripId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this trip and all its events?")) return;
+    try {
+        await axios.delete(`${API_BASE}/events/trips/${tripId}`);
+        setTrips(trips.filter(t => t.id !== tripId));
+        onRefresh();
+    } catch (err) {
+        console.error("Failed to delete trip", err);
+        alert("Failed to delete trip. Please try again.");
+    }
+  };
+
   // Helper to get trip start date
   const getTripDate = (trip) => {
     if (trip.events && trip.events.length > 0) {
@@ -116,7 +129,15 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
                         {formatDistance(getTripTotalDistance(trip))} KM
                     </span>
                 </span>
+                
               </div>
+              <button 
+                    className="delete-trip-btn" 
+                    onClick={(e) => handleDeleteTrip(e, trip.id)}
+                    title="Delete Trip"
+                >
+                <Trash2 size={16} />
+              </button>
             </div>
             {/* We no longer show inline expanded events details here. 
                 User must click to open the TripDetailModal. */}

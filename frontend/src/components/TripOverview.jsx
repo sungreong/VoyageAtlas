@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, MapPin, Camera, DollarSign, Edit } from 'lucide-react';
+import './TripOverview.css';
 
 const TripOverview = ({ 
     trip, 
@@ -44,13 +45,12 @@ const TripOverview = ({
                <div className="stat-icon-small"><DollarSign size={20}/></div>
                <div className="stat-info-compact">
                   {isEditing ? (
-                      <input 
-                         type="number" 
-                         className="cost-field-simple"
-                         style={{width: '80px', fontSize: '1.2rem'}}
-                         value={editValues.cost}
-                         onChange={e => setEditValues({...editValues, cost: e.target.value})}
-                      />
+                       <input 
+                          type="number" 
+                          className="cost-field-simple"
+                          value={editValues.cost}
+                          onChange={e => setEditValues({...editValues, cost: e.target.value})}
+                       />
                   ) : (
                       <span className="val">${parseFloat(editValues.cost || 0).toLocaleString()}</span>
                   )}
@@ -101,14 +101,14 @@ const TripOverview = ({
            {/* Sidebar: Stats & Route */}
            <div className="overview-sidebar">
                {/* Preparation Summary Snapshot */}
-               <div className="overview-card glass-panel prep-summary-snapshot" style={{padding: '25px', marginBottom: '30px'}}>
+               <div className="overview-card glass-panel prep-summary-snapshot">
                   <h3 className="sidebar-label">PREPARATION</h3>
-                  <div style={{marginTop: '15px'}}>
-                     <div style={{display:'flex', justifyContent:'space-between', marginBottom: '8px'}}>
-                        <span style={{fontSize:'0.7rem', color: 'var(--text-muted)'}}>{checkedCount}/{totalPrep} Items Ready</span>
-                        <span style={{fontSize:'0.7rem', color: 'var(--primary)'}}>{totalPrep > 0 ? Math.round((checkedCount/totalPrep)*100) : 0}%</span>
+                  <div className="sidebar-content-wrap">
+                     <div className="sidebar-stats-row">
+                        <span className="stat-label">{checkedCount}/{totalPrep} Items Ready</span>
+                        <span className="stat-val">{totalPrep > 0 ? Math.round((checkedCount/totalPrep)*100) : 0}%</span>
                      </div>
-                     <div className="progress-bar-wrap" style={{height:'3.5px'}}>
+                     <div className="progress-bar-wrap thin">
                         <div className="progress-fill" style={{width: `${totalPrep > 0 ? (checkedCount/totalPrep)*100 : 0}%`}}></div>
                      </div>
                   </div>
