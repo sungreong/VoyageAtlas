@@ -216,26 +216,26 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
                             {prepItems.filter(i => i.category === cat).map(item => (
                                 <div key={item.id} className={`prep-item ${item.is_checked ? 'checked' : ''}`}>
                                     <div className="check-box" onClick={() => handleTogglePrep(item)}>
-                                        {item.is_checked && <Activity size={12}/>}
+                                        {item.is_checked && <Activity size={14}/>}
                                     </div>
                                     <span className="name">{item.item_name}</span>
                                     <button className="delete-mini" onClick={() => handleDeletePrep(item.id)}>
-                                        <Plus size={12} style={{transform: 'rotate(45deg)'}}/>
+                                        <X size={14}/>
                                     </button>
-                                </div>
+                                 </div>
                             ))}
                             {prepItems.filter(i => i.category === cat).length === 0 && (
                                 <div className="empty-category-hint">
-                                    Nothing added yet.
+                                    Ready to be filled
                                 </div>
                             )}
                         </div>
                         <div className="prep-add-row">
                             <input 
                                 type="text" 
-                                placeholder={`+ Add ${cat} item...`} 
+                                placeholder={`+ New ${cat} item...`} 
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
+                                    if (e.key === 'Enter' && e.target.value.trim()) {
                                         handleAddPrep(e.target.value, cat);
                                         e.target.value = '';
                                     }
@@ -271,10 +271,101 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
       }
   };
 
+  // --- Render Gallery: Masonry Layout ---
+  const renderGallery = () => (
+    <div className="gallery-tab-content">
+       <div className="gallery-filter-bar">
+          <button 
+            className={`filter-pill ${activeFilter === 'ALL' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('ALL')}
+          >
+            All Memories
+          </button>
+          {cities.map(c => (
+            <button 
+              key={c}
+              className={`filter-pill ${activeFilter === c ? 'active' : ''}`}
+              onClick={() => setActiveFilter(c)}
+            >
+              {c}
+            </button>
+          ))}
+       </div>
+
+       {filteredMedia.length === 0 ? (
+          <div className="empty-state glass-panel">
+             <Camera size={48} opacity={0.3}/>
+             <p>No memories captured here yet.</p>
+          </div>
+       ) : (
+          <div className="masonry-grid">
+             {/* Simple Masonry: 3 Columns logic */}
+             {[0, 1, 2].map(colIdx => (
+                <div key={colIdx} className="masonry-column">
+                   {filteredMedia.filter((_, i) => i % 3 === colIdx).map(m => (
+                      <div key={m.id} className="masonry-item glass-panel" onClick={() => setHeroImage(m.url)}>
+                         <img src={m.url} alt="Travel memory" loading="lazy" />
+                         <div className="masonry-overlay">
+                            <span className="masonry-city">{m.city}</span>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             ))}
+          </div>
+       )}
+    </div>
+  );
+
   // Render Overview Logic
-  const renderOverview = () => (
-     <div className="overview-tab-content">
-        <div className="overview-grid-top">
+  const renderOverview = () => {
+    const checkedCount = prepItems.filter(i => i.is_checked).length;
+    const totalPrep = prepItems.length;
+
+    return (
+      <div className="overview-tab-content">
+         <div className="overview-stats-row">
+            <div className="stat-card-compact">
+               <div className="stat-icon-small"><Calendar size={20}/></div>
+               <div className="stat-info-compact">
+                  <span className="val">{stats?.days}</span>
+                  <span className="lbl">Days</span>
+               </div>
+            </div>
+            <div className="stat-card-compact">
+               <div className="stat-icon-small"><MapPin size={20}/></div>
+               <div className="stat-info-compact">
+                  <span className="val">{stats?.cityCount}</span>
+                  <span className="lbl">Cities</span>
+               </div>
+            </div>
+            <div className="stat-card-compact">
+               <div className="stat-icon-small"><Camera size={20}/></div>
+               <div className="stat-info-compact">
+                  <span className="val">{allMedia.length}</span>
+                  <span className="lbl">Photos</span>
+               </div>
+            </div>
+            <div className="stat-card-compact cost-highlight">
+               <div className="stat-icon-small"><DollarSign size={20}/></div>
+               <div className="stat-info-compact">
+                  {isEditing ? (
+                      <input 
+                         type="number" 
+                         className="cost-field-simple"
+                         style={{width: '80px', fontSize: '1.2rem'}}
+                         value={editValues.cost}
+                         onChange={e => setEditValues({...editValues, cost: e.target.value})}
+                      />
+                  ) : (
+                      <span className="val">${parseFloat(editValues.cost || 0).toLocaleString()}</span>
+                  )}
+                  <span className="lbl">Budget</span>
+               </div>
+            </div>
+         </div>
+
+         <div className="overview-grid-main">
            {/* Primary: Trip Reflection */}
            <div className="overview-main-column">
               <div className="overview-card glass-panel reflection-box-v2">
@@ -315,50 +406,19 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
 
            {/* Sidebar: Stats & Route */}
            <div className="overview-sidebar">
-              <div className="overview-card glass-panel stats-card-v2">
-                 <h3 className="sidebar-label">STATISTICS</h3>
-                 <div className="stats-vertical-list">
-                    <div className="stat-item-v2">
-                       <div className="stat-icon"><Calendar size={20}/></div>
-                       <div className="stat-info">
-                          <span className="stat-val">{stats?.days}</span>
-                          <span className="stat-lbl">Days on the road</span>
-                       </div>
-                    </div>
-                    <div className="stat-item-v2">
-                       <div className="stat-icon"><MapPin size={20}/></div>
-                       <div className="stat-info">
-                          <span className="stat-val">{stats?.cityCount}</span>
-                          <span className="stat-lbl">Cities Explored</span>
-                       </div>
-                    </div>
-                    <div className="stat-item-v2">
-                       <div className="stat-icon"><Camera size={20}/></div>
-                       <div className="stat-info">
-                          <span className="stat-val">{allMedia.length}</span>
-                          <span className="stat-lbl">Memories Captured</span>
-                       </div>
-                    </div>
-                    <div className="stat-item-v2 cost-highlight">
-                       <div className="stat-icon"><DollarSign size={20}/></div>
-                       <div className="stat-info">
-                          {isEditing ? (
-                              <div className="cost-edit-wrap">
-                                 <input 
-                                    type="number" 
-                                    className="cost-field-simple"
-                                    value={editValues.cost}
-                                    onChange={e => setEditValues({...editValues, cost: e.target.value})}
-                                 />
-                              </div>
-                          ) : (
-                              <span className="stat-val">${parseFloat(editValues.cost || 0).toLocaleString()}</span>
-                          )}
-                          <span className="stat-lbl">Estimated Total Cost</span>
-                       </div>
-                    </div>
-                 </div>
-              </div>
+               {/* Preparation Summary Snapshot */}
+               <div className="overview-card glass-panel prep-summary-snapshot" style={{padding: '25px', marginBottom: '30px'}}>
+                  <h3 className="sidebar-label">PREPARATION</h3>
+                  <div style={{marginTop: '15px'}}>
+                     <div style={{display:'flex', justifyContent:'space-between', marginBottom: '8px'}}>
+                        <span style={{fontSize:'0.7rem', color: 'var(--text-muted)'}}>{checkedCount}/{totalPrep} Items Ready</span>
+                        <span style={{fontSize:'0.7rem', color: 'var(--primary)'}}>{totalPrep > 0 ? Math.round((checkedCount/totalPrep)*100) : 0}%</span>
+                     </div>
+                     <div className="progress-bar-wrap" style={{height:'3.5px'}}>
+                        <div className="progress-fill" style={{width: `${totalPrep > 0 ? (checkedCount/totalPrep)*100 : 0}%`}}></div>
+                     </div>
+                  </div>
+               </div>
 
               <div className="overview-card glass-panel route-card-v2">
                  <h3 className="sidebar-label">YOUR ROUTE</h3>
@@ -378,10 +438,11 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
                     ))}
                  </div>
               </div>
-           </div>
-        </div>
-     </div>
-  );
+            </div>
+         </div>
+      </div>
+    );
+  };
 
   return (
     <div className="trip-dashboard-overlay">

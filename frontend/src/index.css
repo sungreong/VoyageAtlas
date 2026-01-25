@@ -41,3 +41,17 @@ body, html {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
 }
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
