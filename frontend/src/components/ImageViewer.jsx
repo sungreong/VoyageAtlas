@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, ZoomIn, Download } from 'lucide-react';
+import './ImageViewer.css';
 
 const ImageViewer = ({ url, onClose }) => {
   if (!url) return null;

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, X, Calendar as CalIcon, MapPin } from 'lucide-react';
+import './TravelCalendar.css';
 
 const TravelCalendar = ({ events, onClose, onSelectDate }) => {
   const [viewMode, setViewMode] = useState('year'); // 'year' or 'month'

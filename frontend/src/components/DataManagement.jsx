@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { X, Edit2, Trash2, Calendar, Map, Film } from 'lucide-react';
+import './DataManagement.css';
 import EditEventModal from './EditEventModal';
 
 const DataManagement = ({ events = [], onClose, onRefresh }) => {

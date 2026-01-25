@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { X, ChevronLeft, ChevronRight, Maximize2, Download, Expand, Trash2, Plus, Edit3, Save } from 'lucide-react';
+import './MediaCarousel.css';
 
 const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);

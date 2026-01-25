@@ -1,0 +1,123 @@
+/* --- Create Odyssey Modal - Layout & Structure --- */
+.odyssey-overlay,
+.odyssey-overlay * {
+  box-sizing: border-box;
+}
+
+.odyssey-overlay {
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.odyssey-modal {
+  width: 900px; /* Wider layout */
+  max-width: 95vw;
+  max-height: 90vh;
+  background: linear-gradient(135deg, rgba(10, 25, 40, 0.98), rgba(5, 15, 25, 0.98));
+  border: 1px solid rgba(0, 243, 255, 0.4);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 243, 255, 0.05);
+  border-radius: 12px;
+  padding: 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Header & Title */
+.odyssey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 5px;
+}
+
+.header-titles h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: #00f2ff;
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+.sub-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+.close-btn-ghost {
+  background: transparent;
+  border: none;
+  color: #00f2ff;
+  cursor: pointer;
+  transition: transform 0.2s;
+  padding: 5px;
+}
+.close-btn-ghost:hover {
+  transform: rotate(90deg);
+  text-shadow: 0 0 8px #00f2ff;
+}
+
+.section-label {
+    font-family: 'Orbitron', sans-serif;
+    color: #00f2ff;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Footer Action */
+.initialize-btn {
+  background: #00f3ff;
+  color: #000;
+  border: none;
+  padding: 15px;
+  width: 100%;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+  transition: all 0.3s;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  margin-top: 10px;
+}
+.initialize-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.6);
+}
+
+/* Scrollbar styling */
+.odyssey-modal::-webkit-scrollbar {
+  width: 6px;
+}
+.odyssey-modal::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.odyssey-modal::-webkit-scrollbar-thumb {
+  background: rgba(0, 243, 255, 0.2);
+  border-radius: 3px;
+}
+.odyssey-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 243, 255, 0.4);
+}

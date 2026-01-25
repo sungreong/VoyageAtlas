@@ -11,6 +11,7 @@ import ExportImportModal from './components/ExportImportModal';
 import './App.css';
 import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2 } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
+import './components/HUD.css';
 
 const API_BASE = '/api';
 

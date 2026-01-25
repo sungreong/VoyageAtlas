@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { X, Calendar, MapPin, Plus, Camera, ArrowRight, Plane, Globe, Trash2 } from 'lucide-react';
-import './CreateOdysseyModal.css'; 
+import './CreateOdysseyModal.layout.css';
+import './CreateOdysseyModal.form.css';
+import './CreateOdysseyModal.itinerary.css'; 
 
 // Aesthetic constants
 const HUD_CYAN = '#00f3ff';

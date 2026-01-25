@@ -1,0 +1,107 @@
+/* --- Create Odyssey Modal - Itinerary & Legs --- */
+
+.legs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 243, 255, 0.1);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.leg-row {
+    display: flex;
+    align-items: center; /* Ensure vertical centering */
+    gap: 10px;
+    background: rgba(0, 243, 255, 0.02);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 243, 255, 0.05);
+    transition: background 0.2s;
+}
+.leg-row:hover {
+    background: rgba(0, 243, 255, 0.05);
+}
+
+.leg-index {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 243, 255, 0.1);
+    color: #00f3ff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.leg-destination {
+    flex: 2;
+}
+.leg-date {
+    flex: 1;
+    min-width: 140px;
+}
+
+.media-btn {
+    background: transparent;
+    border: 1px dashed rgba(0, 243, 255, 0.3);
+    color: rgba(0, 243, 255, 0.7);
+    padding: 0 15px;
+    height: 42px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.media-btn:hover, .media-btn.has-media {
+    background: rgba(0, 243, 255, 0.1);
+    border-color: #00f3ff;
+    color: #fff;
+}
+
+.remove-leg-btn {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: rgba(255, 77, 77, 0.7);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+.remove-leg-btn:hover {
+    background: rgba(255, 77, 77, 0.2);
+    color: #ff4d4d;
+}
+
+.add-leg-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px dashed rgba(0, 243, 255, 0.3);
+    color: #00f3ff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem; /* Matches other font sizes */
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    margin-top: 5px; /* Slight separation from legs */
+}
+.add-leg-btn:hover {
+    background: rgba(0, 243, 255, 0.05);
+    border-color: #00f3ff;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
+}

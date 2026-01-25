@@ -1,0 +1,200 @@
+/* --- Create Odyssey Modal - Forms & Widgets --- */
+
+/* Mission Title (Top) */
+.mission-title-wrapper {
+  margin-bottom: 15px;
+}
+.title-input {
+  background: rgba(0, 243, 255, 0.05) !important;
+  border: 1px solid rgba(0, 243, 255, 0.2) !important;
+  border-bottom: 2px solid rgba(0, 243, 255, 0.5) !important;
+  font-size: 1.2rem;
+  padding: 15px !important;
+  width: 100%;
+  color: #fff !important;
+  font-family: 'Orbitron', sans-serif !important;
+  letter-spacing: 1px;
+}
+.title-input:focus {
+  background: rgba(0, 243, 255, 0.1) !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.15);
+}
+
+/* Configuration Bar (Horizontal) */
+.config-bar {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 243, 255, 0.1);
+}
+
+.config-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+.config-group.narrow {
+    flex: 0 0 160px;
+}
+
+/* Toggle Switch */
+.trip-type-toggle {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    padding: 2px;
+    border: 1px solid rgba(0, 243, 255, 0.2);
+}
+.toggle-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 8px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+}
+.toggle-btn.active {
+    background: rgba(0, 242, 255, 0.2);
+    color: #00f2ff;
+    text-shadow: 0 0 5px rgba(0, 242, 255, 0.5);
+}
+
+/* General Inputs */
+.hud-input {
+    width: 100%;
+    height: 42px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+    color: #fff;
+    padding: 0 15px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    outline: none;
+    transition: all 0.3s;
+}
+.hud-input:focus {
+    border-color: #00f3ff;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+.hud-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+.hud-input-wrapper .input-field-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #00f3ff;
+    pointer-events: none;
+    opacity: 0.7;
+}
+.hud-input-wrapper .hud-input {
+    padding-left: 38px;
+}
+
+/* Date Inputs */
+.date-group {
+    display: flex;
+    gap: 10px;
+}
+.date-input-wrapper {
+    position: relative;
+    width: 100%;
+    /* Remove explicit height to prevent conflict */
+    /* display: block; Default, good for input */
+}
+.hidden-date-picker {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+    bottom: 0;
+    left: 0;
+}
+.date-input-wrapper .input-field-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #00f3ff;
+    pointer-events: none; /* Default, overridden by clickable-icon if needed */
+    z-index: 5;
+}
+
+/* Base text input should be visible and typable */
+/* Update padding to account for absolute icon */
+.date-input-wrapper .hud-input.date-typing-input {
+    padding-left: 38px !important;
+    padding-right: 15px !important; 
+}
+
+.input-field-icon.clickable-icon {
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 10;
+}
+.input-field-icon.clickable-icon:hover {
+    color: #fff;
+    filter: drop-shadow(0 0 5px #00f3ff);
+}
+
+/* Frequent Cities Chips (Floating) */
+.hud-input-wrapper.dropdown-container {
+    position: relative;
+    z-index: 50; /* Ensure it stays on top when open */
+}
+
+.city-chips.floating-chips {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(5, 15, 30, 0.95);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    border-radius: 0 0 8px 8px;
+    padding: 10px;
+    margin-top: 2px;
+    gap: 8px;
+    flex-wrap: wrap;
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 243, 255, 0.1);
+    backdrop-filter: blur(10px);
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.city-chip {
+    background: rgba(0, 243, 255, 0.05);
+    border: 1px solid rgba(0, 243, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'Orbitron', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 0 0 auto; /* Prevent shrinking */
+}
+.city-chip:hover {
+    background: rgba(0, 243, 255, 0.2);
+    border-color: #00f3ff;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
+    transform: translateY(-1px);
+}

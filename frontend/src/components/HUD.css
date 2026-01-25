@@ -1,0 +1,35 @@
+
+.hud-overlay {
+  position: absolute;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-overlay button,
+.hud-overlay a,
+.hud-overlay input,
+.hud-overlay .pointer-auto {
+  pointer-events: auto;
+}
+
+.top-left { top: 20px; left: 20px; }
+.top-right { top: 20px; right: 20px; }
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--primary);
+  text-shadow: 0 0 10px var(--primary);
+}
+
+.hud-item.primary {
+  font-weight: bold;
+  border-bottom: 1px solid var(--primary);
+  padding-bottom: 5px;
+}
