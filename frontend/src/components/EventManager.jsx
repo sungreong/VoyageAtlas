@@ -1,37 +1,36 @@
-import React from 'react';
-import { Trash2, X, Image as ImageIcon, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calendar } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = '/api';
 
-const EventManager = ({ events, onClose, onRefresh }) => {
-  const handleDeleteEvent = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this event?")) return;
+const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) => {
+  // We ignore propEvents for the main list and fetch grouped data
+  const [trips, setTrips] = useState([]);
+  // const [expandedTrips, setExpandedTrips] = useState({}); // No longer expanding inline
+
+  useEffect(() => {
+    fetchTrips();
+  }, []);
+
+  const fetchTrips = async () => {
     try {
-      await axios.delete(`${API_BASE}/events/${id}`);
-      onRefresh();
+      const res = await axios.get(`${API_BASE}/events/trips`);
+      setTrips(res.data);
     } catch (err) {
-      console.error("Delete failed", err);
+      console.error("Failed to fetch trips", err);
     }
   };
 
   const handleDeleteAll = async () => {
-    if (!window.confirm("WARNING: This will delete ALL travel data. Continue?")) return;
+    if (!window.confirm("WARNING: This will delete ALL travel data (All Trips). Continue?")) return;
     try {
       await axios.delete(`${API_BASE}/events/all/clear`);
+      fetchTrips();
       onRefresh();
       onClose();
     } catch (err) {
       console.error("Bulk delete failed", err);
-    }
-  };
-
-  const handleDeleteMedia = async (mediaId) => {
-    try {
-      await axios.delete(`${API_BASE}/events/media/${mediaId}`);
-      onRefresh();
-    } catch (err) {
-      console.error("Media delete failed", err);
     }
   };
 
@@ -46,24 +45,23 @@ const EventManager = ({ events, onClose, onRefresh }) => {
       </div>
       
       <div className="event-list">
-        {events.length === 0 && <p className="empty-msg">No journey logs found. Start by adding a travel!</p>}
-        {events.map((event) => (
-          <div key={event.id} className="event-item glass-panel">
-            <div className="event-info">
-              <h4>{event.title}</h4>
-              <p><MapPin size={14} /> {event.from_name} → {event.to_name}</p>
-              <div className="event-media-list">
-                {event.media_list?.map(m => (
-                  <div key={m.id} className="media-chip">
-                    <ImageIcon size={14} />
-                    <button className="del-media" onClick={() => handleDeleteMedia(m.id)}>×</button>
-                  </div>
-                ))}
+        {trips.length === 0 && <p className="empty-msg">No journey logs found. Start by adding a travel!</p>}
+        
+        {trips.map((trip) => (
+          <div key={trip.id} className="trip-group-container hover-effect" onClick={() => onSelectTrip(trip)}>
+            <div className="trip-header">
+              <div className="trip-title-section">
+                <ChevronRight size={16} />
+                <span className="trip-title">{trip.title || `Trip #${trip.id}`}</span>
+                <span className="trip-date">
+                   <Calendar size={12} style={{marginRight: 4}}/>
+                   {new Date(trip.created_at).toLocaleDateString()}
+                </span>
+                <span className="trip-badge">{trip.events.length} LEGS</span>
               </div>
             </div>
-            <button className="del-event-btn" onClick={() => handleDeleteEvent(event.id)}>
-              <Trash2 size={18} />
-            </button>
+            {/* We no longer show inline expanded events details here. 
+                User must click to open the TripDetailModal. */}
           </div>
         ))}
       </div>

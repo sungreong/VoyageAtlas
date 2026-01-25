@@ -1,0 +1,112 @@
+/* TripDetailModal.css */
+
+.trip-detail-modal {
+  width: 850px;
+  max-width: 95vw;
+  height: 85vh;
+  background: var(--bg-deep);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+  overflow: hidden;
+}
+
+.detail-header {
+  padding: 30px;
+  border-bottom: 1px solid var(--glass-border);
+  background: linear-gradient(90deg, rgba(0, 242, 255, 0.05) 0%, transparent 100%);
+}
+
+.detail-title-block h1 {
+  font-family: var(--font-accent);
+  font-size: 2.5rem;
+  font-weight: 200;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.journal-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-spine {
+  position: absolute;
+  left: 6px;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--primary) 0%, rgba(255,255,255,0.05) 100%);
+  opacity: 0.3;
+}
+
+.journal-item {
+  position: relative;
+  padding-left: 40px;
+  margin-bottom: 20px;
+}
+
+.node-dot {
+  position: absolute;
+  left: 1px; top: 12px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: var(--neon-glow);
+  z-index: 2;
+}
+
+.node-dot.start { background: #00ff9d; box-shadow: 0 0 15px #00ff9d; }
+.node-dot.end { background: #ff3e6d; box-shadow: 0 0 15px #ff3e6d; }
+
+.stay-card {
+  background: var(--glass-heavy);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 25px;
+  transition: all 0.3s;
+}
+
+.stay-card:hover {
+  border-color: var(--primary);
+  background: rgba(255,255,255,0.05);
+}
+
+.location-info h2 {
+  font-family: var(--font-accent);
+  font-size: 2rem;
+  font-weight: 300;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.journal-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.journal-media-thumb {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.journal-media-thumb:hover {
+  transform: scale(1.05);
+  border-color: var(--primary);
+}
+
+.journal-media-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+}

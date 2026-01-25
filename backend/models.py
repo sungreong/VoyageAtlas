@@ -6,6 +6,8 @@ class Trip(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     description: Optional[str] = None
+    note: Optional[str] = None  # User reflection
+    cost: Optional[float] = None # Total cost
     created_at: datetime = Field(default_factory=datetime.utcnow)
     events: List["TravelEvent"] = Relationship(back_populates="trip")
 
@@ -45,3 +47,11 @@ class TravelEvent(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete"}
     )
     trip: Trip = Relationship(back_populates="events")
+
+class TripPreparation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    trip_id: int = Field(foreign_key="trip.id")
+    category: str = Field(default="Packing") # e.g. Packing, Checklist, Finance
+    item_name: str
+    is_checked: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

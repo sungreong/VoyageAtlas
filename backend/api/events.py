@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from models import TravelEvent, Trip, EventMedia
+from models import TravelEvent, Trip, EventMedia, TripPreparation
 import boto3
 import os
 from database import get_session
@@ -51,11 +51,33 @@ class TravelEventRead(BaseModel):
     media_list: List[EventMediaRead] = []
     model_config = ConfigDict(from_attributes=True)
 
+class TripRead(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    note: Optional[str] = None
+    cost: Optional[float] = None
+    created_at: datetime
+    events: List[TravelEventRead] = []
+    model_config = ConfigDict(from_attributes=True)
+
 class SimpleTripRequest(BaseModel):
     title: str
     start_city: str
     start_date: datetime
     legs: List[ItineraryLeg]
+
+@router.get("/trips", response_model=List[TripRead])
+def read_trips(session: Session = Depends(get_session)):
+    """
+    Get all trips with their events hierarchically.
+    """
+    trips = session.exec(
+        select(Trip)
+        .options(selectinload(Trip.events).selectinload(TravelEvent.media_list))
+        .order_by(Trip.created_at.desc())
+    ).all()
+    return trips
 
 @router.get("/", response_model=List[TravelEventRead])
 def read_events(session: Session = Depends(get_session)):
@@ -78,47 +100,109 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
         raise HTTPException(status_code=400, detail=f"Could not resolve city: {req.start_city}")
     
     prev_city = req.start_city
-    prev_date = req.start_date
     
     # 3. Create Events for each leg
     event_ids = []
+    
+    # Start Event (Departing from Start City)
+    # Actually, the logic usually is:
+    # Event 1: Start City -> First Leg City
+    
+    current_date = req.start_date
+    current_city = req.start_city
+    current_lat, current_lng = prev_lat, prev_lng
+    
     for i, leg in enumerate(req.legs):
         dest_lat, dest_lng = geocode_city(leg.city_name)
-        if dest_lat is None:
-            event_ids.append(None)
-            continue 
-            
-        # Determine event date: 
-        # For the first leg, use the Trip Start Date (Departure).
-        # For subsequent legs, use the Leg's Arrival Date.
-        if i == 0:
-            event_date = req.start_date
-        else:
-            event_date = leg.arrival_date
-
-        event = TravelEvent(
+        
+        # Flight Duration / Arrival Time?
+        # Use provided arrival date
+        
+        # Create Event
+        evt = TravelEvent(
             trip_id=trip.id,
-            title=f"Travel from {prev_city} to {leg.city_name}",
-            from_name=prev_city,
+            start_datetime=current_date, # Departure time usually
+            # arrival_datetime=leg.arrival_date, # If we had it
+            from_name=current_city,
             to_name=leg.city_name,
-            from_lat=prev_lat,
-            from_lng=prev_lng,
+            from_lat=current_lat,
+            from_lng=current_lng,
             to_lat=dest_lat,
             to_lng=dest_lng,
-            start_datetime=event_date,
-            transport="plane"
+            transport="plane",
+            title=f"Flight to {leg.city_name}"
         )
-        session.add(event)
-        session.flush() # Get ID
-        event_ids.append(event.id)
+        session.add(evt)
+        session.flush()
+        event_ids.append(evt.id)
         
-        # Move state for next leg
-        prev_city = leg.city_name
-        prev_lat, prev_lng = dest_lat, dest_lng
-        # prev_date = event_date # Assigned but unused, kept for logical tracking
-        
+        # Update for next
+        current_city = leg.city_name
+        current_lat, current_lng = dest_lat, dest_lng
+        current_date = leg.arrival_date # Approx departure for next?
+    
+    # --- Trip Preparation Endpoints ---
+
+@router.get("/trips/{trip_id}/preparations", response_model=List[TripPreparation])
+def get_preparations(trip_id: int, session: Session = Depends(get_session)):
+    return session.exec(select(TripPreparation).where(TripPreparation.trip_id == trip_id)).all()
+
+@router.post("/trips/{trip_id}/preparations", response_model=TripPreparation)
+def create_preparation(trip_id: int, prep: TripPreparation, session: Session = Depends(get_session)):
+    prep.trip_id = trip_id
+    session.add(prep)
+    session.commit()
+    session.refresh(prep)
+    return prep
+
+@router.patch("/preparations/{prep_id}", response_model=TripPreparation)
+def update_preparation(prep_id: int, prep_data: dict, session: Session = Depends(get_session)):
+    db_prep = session.get(TripPreparation, prep_id)
+    if not db_prep:
+        raise HTTPException(status_code=404, detail="Preparation item not found")
+    
+    prep_dict = prep_data
+    for key, value in prep_dict.items():
+        setattr(db_prep, key, value)
+    
+    session.add(db_prep)
+    session.commit()
+    session.refresh(db_prep)
+    return db_prep
+
+@router.delete("/preparations/{prep_id}")
+def delete_preparation(prep_id: int, session: Session = Depends(get_session)):
+    db_prep = session.get(TripPreparation, prep_id)
+    if not db_prep:
+        raise HTTPException(status_code=404, detail="Preparation item not found")
+    session.delete(db_prep)
+    session.commit()
+    return {"ok": True}
     session.commit()
     return {"trip_id": trip.id, "event_ids": event_ids}
+
+class TripUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    note: Optional[str] = None
+    cost: Optional[float] = None
+
+@router.patch("/trips/{trip_id}", response_model=TripRead)
+def update_trip(trip_id: int, trip_update: TripUpdate, session: Session = Depends(get_session)):
+    trip = session.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    trip_data = trip_update.model_dump(exclude_unset=True)
+    for key, value in trip_data.items():
+        setattr(trip, key, value)
+        
+    session.add(trip)
+    session.commit()
+    session.refresh(trip)
+    return trip
+
+
 
 @router.post("/{event_id}/media")
 async def upload_media(event_id: int, files: List[UploadFile] = File(...), session: Session = Depends(get_session)):

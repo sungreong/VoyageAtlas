@@ -29,6 +29,22 @@ def migrate():
             else:
                 print(f"Error adding column {col_name}: {e}")
 
+    trip_columns = [
+        ("note", "TEXT"),
+        ("cost", "FLOAT")
+    ]
+    
+    for col_name, col_type in trip_columns:
+        try:
+            print(f"Adding column {col_name} to trip table...")
+            cursor.execute(f"ALTER TABLE trip ADD COLUMN {col_name} {col_type}")
+            print(f"Column {col_name} added successfully.")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e).lower():
+                print(f"Column {col_name} already exists.")
+            else:
+                print(f"Error adding column {col_name}: {e}")
+
     conn.commit()
     conn.close()
     print("Migration complete.")

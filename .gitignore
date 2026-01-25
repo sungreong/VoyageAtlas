@@ -33,3 +33,5 @@ pnpm-debug.log*
 
 # OS specific checks
 .directory
+.agent
+.claude

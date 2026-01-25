@@ -33,196 +33,30 @@
   padding-bottom: 5px;
 }
 
-.wide-panel {
-  width: 400px !important;
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
-}
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--primary);
-  padding-bottom: 10px;
-}
-
-.close-mini-btn {
-  background: none;
-  border: none;
-  color: var(--primary);
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.timeline-container {
-  overflow-y: auto;
-  flex-grow: 1;
-  padding-right: 10px;
-}
-
-.timeline-visit {
-  margin-bottom: 25px;
-  padding-left: 15px;
-  border-left: 2px solid rgba(0, 242, 255, 0.2);
-  transition: all 0.3s;
-}
-
-.timeline-visit.active {
-  border-left-color: var(--primary);
-  background: rgba(0, 242, 255, 0.05);
-}
-
-.visit-info {
-  cursor: pointer;
-  margin-bottom: 10px;
-}
-
-.visit-date {
+/* HUD Base (Kept for App.jsx) */
+.hud-font {
   font-family: 'Orbitron', sans-serif;
-  font-size: 10px;
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 
-.visit-title {
-  font-size: 0.9rem;
-  font-weight: bold;
-  margin-top: 5px;
-}
 
-.mini-gallery {
-  margin-top: 10px !important;
-}
 
-.no-media {
-  font-size: 8px;
-  opacity: 0.4;
-  letter-spacing: 2px;
+/* Global Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-
-.no-media.clickable-upload {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-  border: 1px dashed transparent;
-  padding: 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  opacity: 0.7;
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
 }
-
-.no-media.clickable-upload:hover {
-  background: rgba(0, 242, 255, 0.05);
-  border-color: var(--primary);
-  opacity: 1;
-  transform: scale(1.02);
-}
-
-.signal-count {
-  background: var(--primary);
-  color: #000;
-  padding: 0 4px;
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 255, 0.2);
   border-radius: 4px;
-  font-size: 9px;
-  margin-left: 5px;
-  font-weight: bold;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 255, 0.4);
 }
 
-.media-preview {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 350px;
-  padding: 25px;
-  z-index: 10;
-  text-align: left;
-  border-left: 4px solid var(--primary);
-}
-
-.media-preview h3 {
-  margin: 0;
-  color: var(--primary);
-  font-family: 'Orbitron', sans-serif;
-  letter-spacing: 1px;
-}
-
-.media-gallery {
-  display: flex;
-  gap: 15px;
-  margin-top: 20px;
-  overflow-x: auto;
-  padding-bottom: 15px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary) transparent;
-}
-
-.media-gallery::-webkit-scrollbar {
-  height: 4px;
-}
-
-.media-gallery::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 2px;
-}
-
-.media-thumb {
-  position: relative;
-  flex: 0 0 150px;
-  height: 100px;
-  border: 1px solid var(--glass-border);
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.media-thumb:hover {
-  border-color: var(--primary);
-  transform: scale(1.05);
-  box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
-}
-
-.media-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity 0.3s;
-}
-
-.media-thumb img.broken {
-  object-fit: contain;
-  padding: 10px;
-  background: rgba(255, 77, 77, 0.05);
-  border: 1px dashed rgba(255, 77, 77, 0.3);
-  opacity: 0.6;
-}
-
-.pano-badge {
-  position: absolute;
-  bottom: 0px;
-  left: 0px;
-  right: 0px;
-  background: rgba(0, 242, 255, 0.8);
-  color: #000;
-  font-size: 9px;
-  padding: 4px;
-  text-align: center;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: bold;
-}
-
-.video-badge {
-  background: #ff4d4d;
-  color: #fff;
-}
 
 .file-input-container {
   margin: 10px 0;
@@ -1950,3 +1784,349 @@ textarea.neon-input {
 .neon-icon-glow {
     filter: drop-shadow(0 0 10px rgba(0, 255, 238, 0.5));
 }
+
+/* --- Create Odyssey Modal (HUD Style) --- */
+.odyssey-overlay {
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85); /* Darker overlay */
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.odyssey-modal {
+  width: 500px;
+  max-height: 90vh;
+  background: rgba(10, 20, 30, 0.95);
+  border: 1px solid var(--primary); /* HUD border */
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.15);
+  border-radius: 8px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.odyssey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.3);
+  padding-bottom: 15px;
+  margin-bottom: 10px;
+}
+
+.header-titles h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: var(--primary);
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+.sub-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+.close-btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.close-btn-ghost:hover {
+  transform: rotate(90deg);
+  text-shadow: 0 0 8px var(--primary);
+}
+
+.section-label {
+  font-family: 'Orbitron', sans-serif;
+  color: var(--primary);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Trip Type Toggle */
+.trip-type-toggle {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 20px;
+}
+.toggle-btn {
+  flex: 1;
+  background: rgba(0, 242, 255, 0.05);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+.toggle-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.toggle-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+.toggle-btn.active {
+  background: var(--primary);
+  color: #000;
+  font-weight: bold;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+}
+
+/* Inputs */
+.hud-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  color: #fff;
+  padding: 12px 15px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+.hud-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 5px rgba(0, 242, 255, 0.2);
+}
+.input-group {
+  margin-bottom: 15px;
+}
+.input-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    color: var(--primary);
+    margin-bottom: 5px;
+    display: block;
+}
+.date-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+.date-input-wrapper .input-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+/* Leg Cards */
+.legs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: visible;
+}
+.leg-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 15px;
+  position: relative;
+}
+.leg-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.leg-badge {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  color: var(--primary);
+  opacity: 0.8;
+}
+.remove-leg-btn {
+  background: none;
+  border: none;
+  color: #ff4d4d;
+  cursor: pointer;
+}
+.leg-inputs .input-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.leg-inputs .input-row input[type="text"] {
+    flex: 2;
+}
+.date-input-mini {
+    flex: 1;
+}
+
+.add-photo-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+.add-photo-btn:hover {
+  background: rgba(0, 242, 255, 0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.add-stop-btn {
+  background: transparent;
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  padding: 12px;
+  width: 100%;
+  margin-top: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.add-stop-btn:hover {
+  background: rgba(0, 242, 255, 0.05);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.1);
+}
+
+.title-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 1.1rem;
+    padding: 10px 0;
+    margin-top: 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+}
+.title-input:focus {
+    border-bottom-color: var(--primary);
+    box-shadow: none;
+}
+
+.initialize-btn {
+  background: var(--primary);
+  color: #000;
+  border: none;
+  padding: 15px;
+  width: 100%;
+  margin-top: 20px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.initialize-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.5);
+}
+
+/* --- Trip Manager Grouping --- */
+.trip-group-container {
+  margin-bottom: 15px;
+  border: 1px solid rgba(0, 242, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.trip-header {
+  padding: 12px 15px;
+  background: rgba(0, 242, 255, 0.05);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s;
+}
+.trip-header:hover {
+  background: rgba(0, 242, 255, 0.1);
+}
+
+.trip-title-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  color: var(--text);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+}
+
+.trip-title {
+  font-weight: bold;
+}
+
+.trip-date {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.trip-badge {
+    background: rgba(0, 242, 255, 0.2);
+    color: var(--primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    margin-left: auto;
+}
+
+.trip-events-container {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nested-event {
+  margin-left: 15px;
+  border-left: 2px solid rgba(0, 242, 255, 0.3);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* --- Trip Detail Modal --- */
+
+/* --- End of Base Styles --- */
+
+
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TravelGlobe from './components/TravelGlobe';
-import SimpleEventForm from './components/SimpleEventForm';
+import CreateOdysseyModal from './components/CreateOdysseyModal';
 import EventManager from './components/EventManager';
 import PanoramaViewer from './components/PanoramaViewer';
 import MediaCarousel from './components/MediaCarousel';
@@ -10,11 +10,13 @@ import DataManagement from './components/DataManagement';
 import ExportImportModal from './components/ExportImportModal';
 import './App.css';
 import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2 } from 'lucide-react';
+import TripDashboard from './components/TripDashboard';
 
 const API_BASE = '/api';
 
 const App = () => {
   const [events, setEvents] = useState([]);
+  const [trips, setTrips] = useState([]); // Grouped data from backend
   const [currentEventIndex, setCurrentEventIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -29,26 +31,42 @@ const App = () => {
   const [showExportImport, setShowExportImport] = useState(false);
   const [showEventInfo, setShowEventInfo] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
+  const [selectedTripId, setSelectedTripId] = useState(null); 
+  const [forcedCamera, setForcedCamera] = useState(null); // { lat, lng, altitude, duration }
   
-  // Upload related state
-  const fileInputRef = React.useRef(null);
-  const [uploadingEventId, setUploadingEventId] = useState(null);
-
   useEffect(() => {
     fetchEvents();
   }, []);
 
-
   const fetchEvents = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/events/`);
-      console.log("DEBUG: Fetched events:", res.data);
-      setEvents(res.data);
-      if (res.data.length > 0 && currentEventIndex === -1) setCurrentEventIndex(0);
+      // Fetch both flat events for globe AND grouped trips for dashboard metadata
+      const [eventsRes, tripsRes] = await Promise.all([
+          axios.get(`${API_BASE}/events/`),
+          axios.get(`${API_BASE}/events/trips`)
+      ]);
+      
+      setEvents(eventsRes.data);
+      setTrips(tripsRes.data);
+      
+      if (eventsRes.data.length > 0 && currentEventIndex === -1) setCurrentEventIndex(0);
+      return eventsRes.data;
     } catch (err) {
-      console.error("Failed to fetch events", err);
+      console.error("Failed to fetch data", err);
+      return [];
     }
   };
+
+  // derived selectedTrip is now accurate from the backend's grouped response
+  const selectedTrip = React.useMemo(() => {
+    if (!selectedTripId || trips.length === 0) return null;
+    return trips.find(t => t.id === selectedTripId);
+  }, [trips, selectedTripId]);
+
+  
+  // Upload related state
+  const fileInputRef = React.useRef(null);
+  const [uploadingEventId, setUploadingEventId] = useState(null);
 
   const handleGlobeClick = (lat, lng) => {
     setSelectedCoords({ lat, lng });
@@ -57,10 +75,12 @@ const App = () => {
 
   const handleMarkerClick = (city) => {
     setSelectedCity(city);
-    setShowEventInfo(true);
     // Find the first event for this city to center on the timeline
     const firstEventIndex = events.findIndex(e => e.to_name === city.name);
     if (firstEventIndex !== -1) setCurrentEventIndex(firstEventIndex);
+    // Also set selectedTrip if we can find which trip this event belongs to?
+    // For now just show event info
+    setShowEventInfo(true);
   };
 
   const handleUploadClick = (eventId) => {
@@ -115,13 +135,25 @@ const App = () => {
         }
       }
       
-      fetchEvents();
+      const updatedEvents = await fetchEvents();
       setShowForm(false);
+      
+      // Set simulation to start of new trip
+      if (eventIds.length > 0 && updatedEvents.length > 0) {
+          const firstNewEventId = eventIds[0];
+          const newIndex = updatedEvents.findIndex(e => e.id === firstNewEventId);
+          if (newIndex !== -1) {
+              setCurrentEventIndex(newIndex);
+              // Optional: Auto-play?
+              // setIsPlaying(true); 
+          }
+      }
     } catch (err) {
       console.error("Failed to create simple trip", err);
     }
   };
 
+  // Playback Loop
   useEffect(() => {
     let timer;
     if (isPlaying && currentEventIndex < events.length) {
@@ -140,73 +172,109 @@ const App = () => {
     return () => clearTimeout(timer);
   }, [isPlaying, currentEventIndex, speed, events]);
 
+  const handleDashboardFocus = (lat, lng, altitude = 1000000, duration = 2000) => {
+    setForcedCamera({ lat, lng, altitude, duration });
+  };
+
   return (
     <div className="app-container">
-      <TravelGlobe 
-        events={events} 
-        currentEventIndex={currentEventIndex} 
-        isPlaying={isPlaying} 
-        onGlobeClick={handleGlobeClick}
-        onMarkerClick={handleMarkerClick}
-        speed={speed}
-      />
+       <TravelGlobe 
+          events={events} 
+          currentEventIndex={currentEventIndex}
+          isPlaying={isPlaying}
+          speed={speed}
+          onGlobeClick={handleGlobeClick}
+          onMarkerClick={handleMarkerClick}
+          forcedCamera={forcedCamera} 
+       />
 
-      <div className="hud-overlay top-left hud-font glass-panel">
-        <div className="hud-item primary">
-          <Plane size={18} /> <span>STATUS: {isPlaying ? 'CRUISING' : 'READY'}</span>
-        </div>
-        <div className="hud-item">
-          <MapPin size={18} /> <span>POS: {events[currentEventIndex]?.from_name || 'N/A'}</span>
-        </div>
-        <div className="hud-item">
-          <SkipForward size={18} /> <span>DEST: {events[currentEventIndex]?.to_name || 'N/A'}</span>
-        </div>
-      </div>
+       {/* Top Left HUD */}
+       <div className="hud-overlay top-left hud-font glass-panel">
+         <div className="hud-item primary">
+           <Plane size={18} /> <span>STATUS: {isPlaying ? 'CRUISING' : 'READY'}</span>
+         </div>
+         <div className="hud-item">
+           <MapPin size={18} /> <span>POS: {events[currentEventIndex]?.from_name || 'N/A'}</span>
+         </div>
+         <div className="hud-item">
+           <SkipForward size={18} /> <span>DEST: {events[currentEventIndex]?.to_name || 'N/A'}</span>
+         </div>
+       </div>
 
-      <div className="hud-overlay top-right hud-font glass-panel">
-        <div className="hud-item">
-          <ArrowUp size={18} /> <span>ALT: {isPlaying ? (30000 + Math.floor(Math.random() * 5000)).toLocaleString() : '0'} FT</span>
-        </div>
-        <div className="hud-item">
-          <Wind size={18} /> <span>SPD: {isPlaying ? (800 + Math.floor(Math.random() * 100)) * speed : 0} KM/H</span>
-        </div>
-        {isPlaying && (
-          <div className="hud-item" style={{ fontSize: '12px', border: '1px solid var(--primary)', padding: '2px 5px' }}>
-             HDG: {Math.floor(Math.random() * 360)}°
-          </div>
-        )}
-        <button className="add-toggle-btn" onClick={() => setShowForm(!showForm)}>
-          <Plus /> {showForm ? 'CLOSE' : 'ADD TRAVEL'}
-        </button>
-        <button className="log-btn" onClick={() => setShowManager(true)}>
-          VIEW JOURNEY LOG
-        </button>
-        <button 
-          className={`neon-btn-icon ${showCalendar ? 'active' : ''}`}
-          onClick={() => setShowCalendar(!showCalendar)}
-          title="Calendar View"
-        >
-          <Calendar size={20} />
-          <span className="btn-label">CALENDAR</span>
-        </button>
-        <button 
-          className={`neon-btn-icon ${showDataManagement ? 'active' : ''}`}
-          onClick={() => setShowDataManagement(!showDataManagement)}
-          title="Manage Data"
-        >
-          <Database size={20} />
-          <span className="btn-label">MANAGE</span>
-        </button>
-        <button 
-          className={`neon-btn-icon ${showExportImport ? 'active' : ''}`}
-          onClick={() => setShowExportImport(!showExportImport)}
-          title="Export/Import Data"
-        >
-          <Share2 size={20} />
-          <span className="btn-label">PORTABILITY</span>
-        </button>
-      </div>
+       {/* Top Right Menu */}
+       <div className="hud-overlay top-right hud-font glass-panel">
+         <div className="hud-item">
+           <ArrowUp size={18} /> <span>ALT: {isPlaying ? (30000 + Math.floor(Math.random() * 5000)).toLocaleString() : '0'} FT</span>
+         </div>
+         <div className="hud-item">
+           <Wind size={18} /> <span>SPD: {isPlaying ? (800 + Math.floor(Math.random() * 100)) * speed : 0} KM/H</span>
+         </div>
+         {isPlaying && (
+           <div className="hud-item" style={{ fontSize: '12px', border: '1px solid var(--primary)', padding: '2px 5px' }}>
+              HDG: {Math.floor(Math.random() * 360)}°
+           </div>
+         )}
+         <button className="add-toggle-btn" onClick={() => setShowForm(!showForm)}>
+           <Plus /> {showForm ? 'CLOSE' : 'ADD TRAVEL'}
+         </button>
+         <button className="log-btn" onClick={() => setShowManager(true)}>
+           VIEW JOURNEY LOG
+         </button>
+         <button 
+           className={`neon-btn-icon ${showCalendar ? 'active' : ''}`}
+           onClick={() => setShowCalendar(!showCalendar)}
+           title="Calendar View"
+         >
+           <Calendar size={20} />
+           <span className="btn-label">CALENDAR</span>
+         </button>
+         <button 
+           className={`neon-btn-icon ${showDataManagement ? 'active' : ''}`}
+           onClick={() => setShowDataManagement(!showDataManagement)}
+           title="Manage Data"
+         >
+           <Database size={20} />
+           <span className="btn-label">MANAGE</span>
+         </button>
+         <button 
+           className={`neon-btn-icon ${showExportImport ? 'active' : ''}`}
+           onClick={() => setShowExportImport(!showExportImport)}
+           title="Export/Import Data"
+         >
+           <Share2 size={20} />
+           <span className="btn-label">PORTABILITY</span>
+         </button>
+       </div>
+       
+       {showForm && (
+         <CreateOdysseyModal 
+           onClose={() => setShowForm(false)}
+           onAddSimpleTrip={handleAddSimpleTrip}
+           selectedCoords={selectedCoords}
+         />
+       )}
 
+       {showManager && (
+        <EventManager 
+          events={events} 
+          onClose={() => setShowManager(false)} 
+          onRefresh={fetchEvents}
+          onSelectTrip={(trip) => { 
+            setSelectedTripId(trip.id); 
+            setShowManager(false); 
+          }} 
+        />
+      )}
+
+      {selectedTrip && (
+        <TripDashboard 
+           trip={selectedTrip}
+           onClose={() => { setSelectedTripId(null); setForcedCamera(null); }}
+           onRefresh={fetchEvents}
+           onFocusLocation={handleDashboardFocus}
+        />
+      )}
+      
       {showDataManagement && (
         <DataManagement 
           events={events}
@@ -222,69 +290,7 @@ const App = () => {
         />
       )}
 
-      {showForm && (
-        <SimpleEventForm onAddSimpleTrip={handleAddSimpleTrip} onClose={() => setShowForm(false)} />
-      )}
-
-      {showManager && (
-        <EventManager 
-          events={events} 
-          onClose={() => setShowManager(false)} 
-          onRefresh={fetchEvents} 
-        />
-      )}
-
-      {(showEventInfo && (selectedCity || (currentEventIndex >= 0 && events[currentEventIndex]))) && (
-        <div className="media-preview glass-panel wide-panel">
-          <div className="panel-header">
-            <h3>{selectedCity ? selectedCity.name : events[currentEventIndex].to_name}</h3>
-            <button className="close-mini-btn" onClick={() => setShowEventInfo(false)}>×</button>
-          </div>
-
-          <div className="timeline-container">
-            {events.filter(e => e.to_name === (selectedCity ? selectedCity.name : events[currentEventIndex].to_name)).map((visit, vIdx) => (
-              <div key={vIdx} className={`timeline-visit ${events[currentEventIndex]?.id === visit.id ? 'active' : ''}`}>
-                <div className="visit-info" onClick={() => setCurrentEventIndex(events.findIndex(e => e.id === visit.id))}>
-                  <div className="visit-date">
-                    <Calendar size={12} /> {new Date(visit.start_datetime).toLocaleDateString()}
-                  </div>
-                  <div className="visit-title">{visit.title}</div>
-                </div>
-                
-                <div className="media-gallery mini-gallery">
-                  {visit.media_list?.map((media, mIdx) => (
-                    <div key={mIdx} className="media-thumb" onClick={() => media.media_type === 'pano_image' ? setPanoUrl(media.url) : setCarouselData({ mediaList: visit.media_list, index: mIdx })}>
-                      <img 
-                        src={media.url} 
-                        alt="Visit scene" 
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/150?text=DATA+UNREACHABLE';
-                          e.target.classList.add('broken');
-                        }}
-                      />
-                      {media.media_type === 'pano_image' && <span className="pano-badge">360°</span>}
-                      {media.media_type === 'video' && <span className="pano-badge video-badge">VIDEO</span>}
-                      {media.city && <span className="intelligence-badge location"><MapPin size={8} /> {media.city}</span>}
-                      {media.captured_at && !media.city && <span className="intelligence-badge time">{new Date(media.captured_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
-                    </div>
-                  ))}
-                  {(!visit.media_list || visit.media_list.length === 0) && (
-                    <div 
-                      className="no-media clickable-upload"
-                      onClick={() => handleUploadClick(visit.id)}
-                      title="Click to add photos/videos"
-                    >
-                      <Plus size={16} style={{ marginBottom: '5px' }} />
-                      NO DATA DETECTED - CLICK TO ADD MEDIA
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* Panorama Viewer and Media Carousel */}
       {panoUrl && <PanoramaViewer imageUrl={panoUrl} onClose={() => setPanoUrl(null)} />}
       {carouselData && (
         <MediaCarousel 
@@ -302,6 +308,14 @@ const App = () => {
         />
       )}
 
+      {/* Legacy Mini Event Info (Only if needed, hiding for now if Dashboard covers it) */}
+      {(showEventInfo && (selectedCity || (currentEventIndex >= 0 && events[currentEventIndex]))) && (
+         <div className="media-preview glass-panel wide-panel" style={{display: 'none'}}> 
+            {/* Hiding legacy panel to force Dashboard usage */}
+         </div>
+      )}
+
+      {/* Controls Container */}
       <div className="controls-container glass-panel">
         <div className="playback-controls">
           <button onClick={() => setCurrentEventIndex(Math.max(0, currentEventIndex - 1))}><SkipBack /></button>
@@ -329,15 +343,16 @@ const App = () => {
           </select>
         </div>
       </div>
-      {/* Hidden file input for uploads */}
-      <input 
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        multiple
-        accept="image/*,video/*"
-        onChange={handleFileSelect}
-      />
+
+       {/* Hidden file input for uploads */}
+       <input 
+         type="file"
+         ref={fileInputRef}
+         style={{ display: 'none' }}
+         multiple
+         accept="image/*,video/*"
+         onChange={handleFileSelect}
+       />
     </div>
   );
 };

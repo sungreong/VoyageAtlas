@@ -2,9 +2,17 @@
   --primary: #00f2ff;
   --secondary: #7000ff;
   --bg-dark: #050505;
+  --bg-deep: #050c14;
   --glass: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-heavy: rgba(20, 30, 40, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-shiny: rgba(255, 255, 255, 0.2);
   --text: #e0e0e0;
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --neon-glow: 0 0 15px rgba(0, 242, 255, 0.3);
+  --font-hud: 'Orbitron', sans-serif;
+  --font-main: 'Inter', sans-serif;
+  --font-accent: 'Outfit', sans-serif;
 }
 
 body, html {

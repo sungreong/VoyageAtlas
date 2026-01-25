@@ -2,8 +2,21 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
 
-const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, speed }) => {
+const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, speed, forcedCamera }) => {
   const globeEl = useRef();
+  // ...
+
+  // Handle Forced Camera (Map Sync)
+  useEffect(() => {
+    if (forcedCamera && globeEl.current) {
+       globeEl.current.pointOfView({
+          lat: forcedCamera.lat,
+          lng: forcedCamera.lng,
+          altitude: forcedCamera.altitude || 1.5
+       }, forcedCamera.duration || 1000);
+    }
+  }, [forcedCamera]);
+
   const [airplanePos, setAirplanePos] = useState(null);
   const [sunPos, setSunPos] = useState(null); // { lat, lng }
 
