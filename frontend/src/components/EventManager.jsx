@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calendar } from 'lucide-react';
+import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calendar, ArrowUpDown } from 'lucide-react';
 import axios from 'axios';
+import './EventManager.css';
 
 const API_BASE = '/api';
 
 const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) => {
   // We ignore propEvents for the main list and fetch grouped data
   const [trips, setTrips] = useState([]);
-  // const [expandedTrips, setExpandedTrips] = useState({}); // No longer expanding inline
+  const [sortMode, setSortMode] = useState('date_desc'); // date_desc, date_asc, created_desc
 
   useEffect(() => {
     fetchTrips();
@@ -34,20 +35,61 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
     }
   };
 
+  // Helper to get trip start date
+  const getTripDate = (trip) => {
+    if (trip.events && trip.events.length > 0) {
+        return new Date(trip.events[0].start_datetime);
+    }
+    return new Date(trip.created_at); // Fallback
+  };
+
+  const sortedTrips = [...trips].sort((a, b) => {
+      if (sortMode === 'created_desc') {
+          return new Date(b.created_at) - new Date(a.created_at);
+      }
+      if (sortMode === 'date_desc') {
+          return getTripDate(b) - getTripDate(a);
+      }
+      if (sortMode === 'date_asc') {
+          return getTripDate(a) - getTripDate(b);
+      }
+      return 0;
+  });
+
+  const toggleSort = () => {
+      const modes = ['date_desc', 'date_asc', 'created_desc'];
+      const nextIndex = (modes.indexOf(sortMode) + 1) % modes.length;
+      setSortMode(modes[nextIndex]);
+  };
+
+  const getSortLabel = () => {
+      switch(sortMode) {
+          case 'date_desc': return 'Latest Travel';
+          case 'date_asc': return 'Oldest Travel';
+          case 'created_desc': return 'Recently Created';
+          default: return 'Sort';
+      }
+  };
+
   return (
     <div className="manager-overlay glass-panel">
       <div className="manager-header">
         <h2>JOURNEY LOG</h2>
         <div className="manager-actions">
+          <button className="sort-btn" onClick={toggleSort} title="Change Sort Order">
+            <ArrowUpDown size={14} style={{marginRight: 6}}/>
+            {getSortLabel()}
+          </button>
+          <div className="divider-vertical"></div>
           <button className="delete-all-btn" onClick={handleDeleteAll}>DELETE ALL</button>
           <button className="close-btn" onClick={onClose}><X /></button>
         </div>
       </div>
       
       <div className="event-list">
-        {trips.length === 0 && <p className="empty-msg">No journey logs found. Start by adding a travel!</p>}
+        {sortedTrips.length === 0 && <p className="empty-msg">No journey logs found. Start by adding a travel!</p>}
         
-        {trips.map((trip) => (
+        {sortedTrips.map((trip) => (
           <div key={trip.id} className="trip-group-container hover-effect" onClick={() => onSelectTrip(trip)}>
             <div className="trip-header">
               <div className="trip-title-section">
@@ -55,7 +97,7 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
                 <span className="trip-title">{trip.title || `Trip #${trip.id}`}</span>
                 <span className="trip-date">
                    <Calendar size={12} style={{marginRight: 4}}/>
-                   {new Date(trip.created_at).toLocaleDateString()}
+                   {getTripDate(trip).toLocaleDateString()}
                 </span>
                 <span className="trip-badge">{trip.events.length} LEGS</span>
               </div>
