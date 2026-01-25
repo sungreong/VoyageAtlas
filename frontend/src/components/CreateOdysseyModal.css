@@ -1,0 +1,408 @@
+/* --- Create Odyssey Modal (HUD Style) --- */
+.odyssey-overlay,
+.odyssey-overlay * {
+  box-sizing: border-box;
+}
+
+.odyssey-overlay {
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85); /* Darker overlay */
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.odyssey-modal {
+  width: 500px;
+  max-height: 90vh;
+  background: linear-gradient(135deg, rgba(10, 25, 40, 0.98), rgba(5, 15, 25, 0.98));
+  border: 1px solid rgba(0, 243, 255, 0.4);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 243, 255, 0.05);
+  border-radius: 12px;
+  padding: 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.odyssey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.3);
+  padding-bottom: 15px;
+  margin-bottom: 10px;
+}
+
+.header-titles h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: #00f2ff;
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+.sub-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+.close-btn-ghost {
+  background: transparent;
+  border: none;
+  color: #00f2ff;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.close-btn-ghost:hover {
+  transform: rotate(90deg);
+  text-shadow: 0 0 8px #00f2ff;
+}
+
+.section-label {
+  font-family: 'Orbitron', sans-serif;
+  color: #00f2ff;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Trip Type Toggle */
+.trip-type-toggle {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 20px;
+}
+.toggle-btn {
+  flex: 1;
+  background: rgba(0, 242, 255, 0.05);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+.toggle-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.toggle-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+.toggle-btn.active {
+  background: #00f2ff;
+  color: #000;
+  font-weight: bold;
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+}
+
+/* Inputs */
+.hud-input {
+  width: 100%;
+  height: 46px; /* Explicit height to match date-input-wrapper */
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  color: #fff;
+  padding: 0 18px; /* Use vertical centering instead of vertical padding */
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+}
+
+.hud-input.glass-input {
+    height: 42px; /* Smaller height for waypoints */
+}
+.hud-input:focus {
+  border-color: #00f3ff;
+  background: rgba(0, 243, 255, 0.05);
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+}
+.hud-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+/* Hide default calendar icon */
+.hud-input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    bottom: 0;
+    color: transparent;
+    cursor: pointer;
+    height: auto;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
+}
+.input-group {
+  margin-bottom: 15px;
+}
+.input-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    color: #00f2ff;
+    margin-bottom: 5px;
+    display: block;
+}
+.hud-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0; /* Allow shrinking in flex */
+}
+.hud-input-wrapper .input-field-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #00f3ff;
+    opacity: 0.6;
+    pointer-events: none;
+    filter: drop-shadow(0 0 5px rgba(0, 243, 255, 0.4));
+    display: flex;
+    align-items: center;
+}
+.hud-input-wrapper .hud-input {
+    padding-left: 45px; /* Offset for icon */
+}
+.hud-input-wrapper.title-wrap .hud-input {
+    padding-left: 15px; /* No icon for title wrap in this specific design */
+}
+
+.date-input-wrapper {
+    position: relative;
+    width: 100%;
+    height: 46px;
+    display: flex;
+    align-items: center;
+}
+
+/* Base text input should be visible and typable */
+.date-input-wrapper .hud-input.date-typing-input {
+    padding-left: 45px;
+    padding-right: 45px; /* Space for the clickable icon on the right if needed, but we'll keep the trigger icon on the left or specific area */
+}
+
+/* Hidden picker specifically for triggering the calendar */
+.hidden-date-picker {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.date-input-wrapper .input-field-icon.clickable-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #00f3ff;
+    opacity: 0.8;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 10;
+    transition: all 0.2s;
+}
+
+.date-input-wrapper .input-field-icon.clickable-icon:hover {
+    color: #fff;
+    filter: drop-shadow(0 0 8px rgba(0, 243, 255, 0.8));
+    transform: translateY(-50%) scale(1.1);
+}
+
+.date-display {
+    display: none; /* Removed in favor of direct typing */
+}
+
+.title-input {
+    background: rgba(0, 243, 255, 0.05) !important;
+    border: 1px solid rgba(0, 243, 255, 0.1) !important;
+    border-bottom: 2px solid rgba(0, 243, 255, 0.4) !important;
+    font-size: 1.1rem;
+    padding: 15px !important;
+    margin-top: 10px;
+    text-align: center;
+    color: #fff !important;
+    font-family: 'Orbitron', sans-serif !important;
+    letter-spacing: 1px;
+}
+.title-input:focus {
+    border-bottom-color: #00f3ff !important;
+    background: rgba(0, 243, 255, 0.1) !important;
+}
+
+.section-icon {
+    color: #00f3ff;
+    filter: drop-shadow(0 0 8px rgba(0, 243, 255, 0.6));
+}
+
+/* Legs Section Styling */
+.legs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.leg-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 243, 255, 0.15);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.leg-card:hover {
+    border-color: rgba(0, 243, 255, 0.4);
+    background: rgba(0, 243, 255, 0.02);
+}
+
+.leg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.leg-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    color: #00f3ff;
+    opacity: 0.8;
+    letter-spacing: 1px;
+}
+
+.remove-leg-btn {
+    background: rgba(255, 77, 77, 0.1);
+    border: 1px solid rgba(255, 77, 77, 0.3);
+    color: #ff4d4d;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.remove-leg-btn:hover {
+    background: #ff4d4d;
+    color: #fff;
+}
+
+.leg-inputs .input-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    width: 100%;
+    min-width: 0;
+}
+
+.date-input-mini {
+    min-width: 0;
+}
+
+.add-stop-btn {
+    background: transparent;
+    border: 1px dashed rgba(0, 243, 255, 0.4);
+    color: #00f3ff;
+    padding: 15px;
+    width: 100%;
+    margin-top: 10px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.add-stop-btn:hover {
+    background: rgba(0, 243, 255, 0.08);
+    border-style: solid;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+}
+
+.leg-actions {
+    margin-top: 15px;
+}
+
+.add-photo-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+    width: 100%;
+    justify-content: center;
+}
+
+.add-photo-btn:hover {
+    background: rgba(0, 243, 255, 0.1);
+    border-color: #00f3ff;
+    color: #00f3ff;
+}
+
+.add-photo-btn span {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.initialize-btn {
+  background: #00f3ff;
+  color: #000;
+  border: none;
+  padding: 18px;
+  width: 100%;
+  margin-top: 25px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+}
+.initialize-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 0 40px rgba(0, 243, 255, 0.7);
+}
+.initialize-btn:active {
+    transform: translateY(1px) scale(0.98);
+}
