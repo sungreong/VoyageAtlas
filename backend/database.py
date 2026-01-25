@@ -3,7 +3,7 @@ import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./voyage.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

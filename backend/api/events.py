@@ -89,40 +89,36 @@ def read_events(session: Session = Depends(get_session)):
 
 @router.post("/simple")
 async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(get_session)):
-    # 1. Create Trip
+    # 1. Resolve all locations BEFORE starting DB transaction to avoid locking
+    # Resolve Start City
+    start_lat, start_lng = geocode_city(req.start_city)
+    if start_lat is None:
+        raise HTTPException(status_code=400, detail=f"Could not resolve start city: {req.start_city}")
+    
+    legs_with_coords = []
+    for leg in req.legs:
+        dest_lat, dest_lng = geocode_city(leg.city_name)
+        if dest_lat is None:
+            raise HTTPException(status_code=400, detail=f"Could not resolve leg city: {req.city_name}")
+        legs_with_coords.append((leg, dest_lat, dest_lng))
+
+    # 2. Database Operations
+    # 2.1 Create Trip
     trip = Trip(title=req.title)
     session.add(trip)
-    session.flush()
+    session.flush() # Get trip ID
     
-    # 2. Resolve Start City
-    prev_lat, prev_lng = geocode_city(req.start_city)
-    if prev_lat is None:
-        raise HTTPException(status_code=400, detail=f"Could not resolve city: {req.start_city}")
-    
-    prev_city = req.start_city
-    
-    # 3. Create Events for each leg
+    # 2.2 Create Events for each leg
     event_ids = []
-    
-    # Start Event (Departing from Start City)
-    # Actually, the logic usually is:
-    # Event 1: Start City -> First Leg City
-    
     current_date = req.start_date
     current_city = req.start_city
-    current_lat, current_lng = prev_lat, prev_lng
+    current_lat, current_lng = start_lat, start_lng
     
-    for i, leg in enumerate(req.legs):
-        dest_lat, dest_lng = geocode_city(leg.city_name)
-        
-        # Flight Duration / Arrival Time?
-        # Use provided arrival date
-        
+    for leg, dest_lat, dest_lng in legs_with_coords:
         # Create Event
         evt = TravelEvent(
             trip_id=trip.id,
-            start_datetime=current_date, # Departure time usually
-            # arrival_datetime=leg.arrival_date, # If we had it
+            start_datetime=current_date,
             from_name=current_city,
             to_name=leg.city_name,
             from_lat=current_lat,
@@ -139,9 +135,12 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
         # Update for next
         current_city = leg.city_name
         current_lat, current_lng = dest_lat, dest_lng
-        current_date = leg.arrival_date # Approx departure for next?
+        current_date = leg.arrival_date
     
-    # --- Trip Preparation Endpoints ---
+    session.commit()
+    return {"trip_id": trip.id, "event_ids": event_ids}
+
+# --- Trip Preparation Endpoints ---
 
 @router.get("/trips/{trip_id}/preparations", response_model=List[TripPreparation])
 def get_preparations(trip_id: int, session: Session = Depends(get_session)):
@@ -178,8 +177,6 @@ def delete_preparation(prep_id: int, session: Session = Depends(get_session)):
     session.delete(db_prep)
     session.commit()
     return {"ok": True}
-    session.commit()
-    return {"trip_id": trip.id, "event_ids": event_ids}
 
 class TripUpdate(BaseModel):
     title: Optional[str] = None
@@ -251,13 +248,48 @@ async def upload_media(event_id: int, files: List[UploadFile] = File(...), sessi
             intelligence = analyze_media(tmp_path)
             print(f"DEBUG: Intelligence for {file.filename}: {intelligence}")
 
-            # 2. Upload to S3
+            # 2. Intelligence: Auto-Destination Logic
+            # If the photo has a city, check if it exists in this trip. If not, create it.
+            target_event_id = event_id
+            photo_city = intelligence.get("city")
+            if photo_city:
+                trip_id = db_event.trip_id
+                # Search for an event with this city name in the same trip
+                existing_event = session.exec(
+                    select(TravelEvent).where(
+                        TravelEvent.trip_id == trip_id, 
+                        TravelEvent.to_name == photo_city
+                    )
+                ).first()
+                
+                if existing_event:
+                    target_event_id = existing_event.id
+                else:
+                    # Create a new event for this destination automatically
+                    print(f"DEBUG: Creating new destination '{photo_city}' for trip {trip_id}")
+                    new_evt = TravelEvent(
+                        trip_id=trip_id,
+                        title=f"Visit to {photo_city}",
+                        to_name=photo_city,
+                        from_name=db_event.to_name, # Default from current
+                        from_lat=db_event.to_lat,
+                        from_lng=db_event.to_lng,
+                        to_lat=intelligence.get("lat") or 0,
+                        to_lng=intelligence.get("lng") or 0,
+                        start_datetime=intelligence.get("captured_at") or datetime.now(),
+                        transport="car" # Assume car/bus for auto-detected local spots
+                    )
+                    session.add(new_evt)
+                    session.flush() # Get the new ID
+                    target_event_id = new_evt.id
+
+            # 3. Upload to S3
             with open(tmp_path, 'rb') as f_data:
-                s3.upload_fileobj(f_data, bucket_name, f"events/{event_id}/{file.filename}")
+                s3.upload_fileobj(f_data, bucket_name, f"events/{target_event_id}/{file.filename}")
             
             # URL encode the filename
             encoded_filename = urllib.parse.quote(file.filename)
-            encoded_file_path = f"events/{event_id}/{encoded_filename}"
+            encoded_file_path = f"events/{target_event_id}/{encoded_filename}"
             public_url_base = os.getenv('MEDIA_PUBLIC_URL', 'http://localhost:9999')
             
             # Determine media type
@@ -270,7 +302,7 @@ async def upload_media(event_id: int, files: List[UploadFile] = File(...), sessi
                 m_type = "image"
                 
             media = EventMedia(
-                event_id=event_id,
+                event_id=target_event_id,
                 url=f"{public_url_base}/{bucket_name}/{encoded_file_path}",
                 media_type=m_type,
                 captured_at=intelligence.get("captured_at"),
