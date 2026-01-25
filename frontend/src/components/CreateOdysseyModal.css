@@ -10,7 +10,7 @@
   left: 0; 
   width: 100vw; 
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85); /* Darker overlay */
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
@@ -20,7 +20,8 @@
 }
 
 .odyssey-modal {
-  width: 500px;
+  width: 900px; /* Wider layout */
+  max-width: 95vw;
   max-height: 90vh;
   background: linear-gradient(135deg, rgba(10, 25, 40, 0.98), rgba(5, 15, 25, 0.98));
   border: 1px solid rgba(0, 243, 255, 0.4);
@@ -29,18 +30,17 @@
   padding: 35px;
   display: flex;
   flex-direction: column;
-  gap: 25px;
+  gap: 20px;
   overflow-y: auto;
   position: relative;
 }
 
+/* Header & Title */
 .odyssey-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 1px solid rgba(0, 242, 255, 0.3);
-  padding-bottom: 15px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .header-titles h2 {
@@ -66,343 +66,362 @@
   color: #00f2ff;
   cursor: pointer;
   transition: transform 0.2s;
+  padding: 5px;
 }
 .close-btn-ghost:hover {
   transform: rotate(90deg);
   text-shadow: 0 0 8px #00f2ff;
 }
 
+/* Mission Title (Top) */
+.mission-title-wrapper {
+  margin-bottom: 15px;
+}
+.title-input {
+  background: rgba(0, 243, 255, 0.05) !important;
+  border: 1px solid rgba(0, 243, 255, 0.2) !important;
+  border-bottom: 2px solid rgba(0, 243, 255, 0.5) !important;
+  font-size: 1.2rem;
+  padding: 15px !important;
+  width: 100%;
+  color: #fff !important;
+  font-family: 'Orbitron', sans-serif !important;
+  letter-spacing: 1px;
+}
+.title-input:focus {
+  background: rgba(0, 243, 255, 0.1) !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.15);
+}
+
+/* Configuration Bar (Horizontal) */
+.config-bar {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 243, 255, 0.1);
+}
+
+.config-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+.config-group.narrow {
+    flex: 0 0 160px;
+}
+
 .section-label {
   font-family: 'Orbitron', sans-serif;
   color: #00f2ff;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 1px;
-}
-
-/* Trip Type Toggle */
-.trip-type-toggle {
-  display: flex;
-  gap: 2px;
-  margin-bottom: 20px;
-}
-.toggle-btn {
-  flex: 1;
-  background: rgba(0, 242, 255, 0.05);
-  border: 1px solid rgba(0, 242, 255, 0.3);
-  color: rgba(255, 255, 255, 0.6);
-  padding: 10px;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-}
-.toggle-btn:first-child {
-  border-radius: 4px 0 0 4px;
-}
-.toggle-btn:last-child {
-  border-radius: 0 4px 4px 0;
-}
-.toggle-btn.active {
-  background: #00f2ff;
-  color: #000;
-  font-weight: bold;
-  box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
-}
-
-/* Inputs */
-.hud-input {
-  width: 100%;
-  height: 46px; /* Explicit height to match date-input-wrapper */
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(0, 243, 255, 0.2);
-  color: #fff;
-  padding: 0 18px; /* Use vertical centering instead of vertical padding */
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  border-radius: 4px;
-  outline: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
-.hud-input.glass-input {
-    height: 42px; /* Smaller height for waypoints */
+/* Toggle Switch */
+.trip-type-toggle {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    padding: 2px;
+    border: 1px solid rgba(0, 243, 255, 0.2);
 }
-.hud-input:focus {
-  border-color: #00f3ff;
-  background: rgba(0, 243, 255, 0.05);
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-}
-.hud-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-/* Hide default calendar icon */
-.hud-input[type="date"]::-webkit-calendar-picker-indicator {
+.toggle-btn {
+    flex: 1;
     background: transparent;
-    bottom: 0;
-    color: transparent;
-    cursor: pointer;
-    height: auto;
-    left: 0;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: auto;
-}
-.input-group {
-  margin-bottom: 15px;
-}
-.input-label {
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 8px;
     font-family: 'Orbitron', sans-serif;
     font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+}
+.toggle-btn.active {
+    background: rgba(0, 242, 255, 0.2);
     color: #00f2ff;
-    margin-bottom: 5px;
-    display: block;
+    text-shadow: 0 0 5px rgba(0, 242, 255, 0.5);
+}
+
+/* General Inputs */
+.hud-input {
+    width: 100%;
+    height: 42px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+    color: #fff;
+    padding: 0 15px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    outline: none;
+    transition: all 0.3s;
+}
+.hud-input:focus {
+    border-color: #00f3ff;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
 }
 .hud-input-wrapper {
     position: relative;
-    display: flex;
-    align-items: center;
-    min-width: 0; /* Allow shrinking in flex */
+    width: 100%;
 }
 .hud-input-wrapper .input-field-icon {
     position: absolute;
-    left: 15px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
     color: #00f3ff;
-    opacity: 0.6;
     pointer-events: none;
-    filter: drop-shadow(0 0 5px rgba(0, 243, 255, 0.4));
-    display: flex;
-    align-items: center;
+    opacity: 0.7;
 }
 .hud-input-wrapper .hud-input {
-    padding-left: 45px; /* Offset for icon */
-}
-.hud-input-wrapper.title-wrap .hud-input {
-    padding-left: 15px; /* No icon for title wrap in this specific design */
+    padding-left: 38px;
 }
 
+/* Date Inputs */
+.date-group {
+    display: flex;
+    gap: 10px;
+}
 .date-input-wrapper {
     position: relative;
     width: 100%;
-    height: 46px;
-    display: flex;
-    align-items: center;
+    /* Remove explicit height to prevent conflict */
+    /* display: block; Default, good for input */
 }
-
-/* Base text input should be visible and typable */
-.date-input-wrapper .hud-input.date-typing-input {
-    padding-left: 45px;
-    padding-right: 45px; /* Space for the clickable icon on the right if needed, but we'll keep the trigger icon on the left or specific area */
-}
-
-/* Hidden picker specifically for triggering the calendar */
 .hidden-date-picker {
     position: absolute;
-    width: 0;
-    height: 0;
     opacity: 0;
     pointer-events: none;
-    visibility: hidden;
+    width: 0;
+    height: 0;
 }
-
-.date-input-wrapper .input-field-icon.clickable-icon {
+.date-input-wrapper .input-field-icon {
     position: absolute;
-    left: 15px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
     color: #00f3ff;
-    opacity: 0.8;
+    pointer-events: none; /* Default, overridden by clickable-icon if needed */
+    z-index: 5;
+}
+
+/* Base text input should be visible and typable */
+/* Update padding to account for absolute icon */
+.date-input-wrapper .hud-input.date-typing-input {
+    padding-left: 38px !important;
+    padding-right: 15px !important; 
+}
+
+.input-field-icon.clickable-icon {
     cursor: pointer;
     pointer-events: auto;
     z-index: 10;
-    transition: all 0.2s;
 }
-
-.date-input-wrapper .input-field-icon.clickable-icon:hover {
+.input-field-icon.clickable-icon:hover {
     color: #fff;
-    filter: drop-shadow(0 0 8px rgba(0, 243, 255, 0.8));
-    transform: translateY(-50%) scale(1.1);
+    filter: drop-shadow(0 0 5px #00f3ff);
 }
 
-.date-display {
-    display: none; /* Removed in favor of direct typing */
+/* Frequent Cities Chips (Floating) */
+.hud-input-wrapper.dropdown-container {
+    position: relative;
+    z-index: 50; /* Ensure it stays on top when open */
 }
 
-.title-input {
-    background: rgba(0, 243, 255, 0.05) !important;
-    border: 1px solid rgba(0, 243, 255, 0.1) !important;
-    border-bottom: 2px solid rgba(0, 243, 255, 0.4) !important;
-    font-size: 1.1rem;
-    padding: 15px !important;
-    margin-top: 10px;
-    text-align: center;
-    color: #fff !important;
-    font-family: 'Orbitron', sans-serif !important;
-    letter-spacing: 1px;
-}
-.title-input:focus {
-    border-bottom-color: #00f3ff !important;
-    background: rgba(0, 243, 255, 0.1) !important;
-}
-
-.section-icon {
-    color: #00f3ff;
-    filter: drop-shadow(0 0 8px rgba(0, 243, 255, 0.6));
+.city-chips.floating-chips {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(5, 15, 30, 0.95);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    border-radius: 0 0 8px 8px;
+    padding: 10px;
+    margin-top: 2px;
+    gap: 8px;
+    flex-wrap: wrap;
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 243, 255, 0.1);
+    backdrop-filter: blur(10px);
+    animation: slideDown 0.2s ease-out;
 }
 
-/* Legs Section Styling */
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.city-chip {
+    background: rgba(0, 243, 255, 0.05);
+    border: 1px solid rgba(0, 243, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'Orbitron', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 0 0 auto; /* Prevent shrinking */
+}
+.city-chip:hover {
+    background: rgba(0, 243, 255, 0.2);
+    border-color: #00f3ff;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+/* Itinerary Section */
 .legs-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-}
-
-.leg-card {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(0, 243, 255, 0.15);
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
     border-radius: 8px;
-    padding: 20px;
-    position: relative;
-    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 243, 255, 0.1);
+    max-height: 300px;
+    overflow-y: auto;
 }
 
-.leg-card:hover {
-    border-color: rgba(0, 243, 255, 0.4);
-    background: rgba(0, 243, 255, 0.02);
-}
-
-.leg-header {
+.leg-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+    align-items: center; /* Ensure vertical centering */
+    gap: 10px;
+    background: rgba(0, 243, 255, 0.02);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 243, 255, 0.05);
+    transition: background 0.2s;
+}
+.leg-row:hover {
+    background: rgba(0, 243, 255, 0.05);
 }
 
-.leg-badge {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 0.75rem;
-    color: #00f3ff;
-    opacity: 0.8;
-    letter-spacing: 1px;
-}
-
-.remove-leg-btn {
-    background: rgba(255, 77, 77, 0.1);
-    border: 1px solid rgba(255, 77, 77, 0.3);
-    color: #ff4d4d;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
+.leg-index {
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    border-radius: 50%;
+    background: rgba(0, 243, 255, 0.1);
+    color: #00f3ff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    flex-shrink: 0;
 }
 
-.remove-leg-btn:hover {
-    background: #ff4d4d;
+.leg-destination {
+    flex: 2;
+}
+.leg-date {
+    flex: 1;
+    min-width: 140px;
+}
+
+.media-btn {
+    background: transparent;
+    border: 1px dashed rgba(0, 243, 255, 0.3);
+    color: rgba(0, 243, 255, 0.7);
+    padding: 0 15px;
+    height: 42px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.media-btn:hover, .media-btn.has-media {
+    background: rgba(0, 243, 255, 0.1);
+    border-color: #00f3ff;
     color: #fff;
 }
 
-.leg-inputs .input-row {
+.remove-leg-btn {
+    width: 30px;
+    height: 30px;
     display: flex;
-    gap: 15px;
-    margin-bottom: 15px;
-    width: 100%;
-    min-width: 0;
-}
-
-.date-input-mini {
-    min-width: 0;
-}
-
-.add-stop-btn {
+    align-items: center;
+    justify-content: center;
     background: transparent;
-    border: 1px dashed rgba(0, 243, 255, 0.4);
-    color: #00f3ff;
-    padding: 15px;
-    width: 100%;
-    margin-top: 10px;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 0.9rem;
+    border: none;
+    color: rgba(255, 77, 77, 0.7);
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.3s;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.add-stop-btn:hover {
-    background: rgba(0, 243, 255, 0.08);
-    border-style: solid;
-    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
-}
-
-.leg-actions {
-    margin-top: 15px;
-}
-
-.add-photo-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px dashed rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.6);
-    padding: 10px 15px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
     transition: all 0.2s;
+    border-radius: 4px;
+}
+.remove-leg-btn:hover {
+    background: rgba(255, 77, 77, 0.2);
+    color: #ff4d4d;
+}
+
+.add-leg-btn {
     width: 100%;
-    justify-content: center;
-}
-
-.add-photo-btn:hover {
-    background: rgba(0, 243, 255, 0.1);
-    border-color: #00f3ff;
+    padding: 12px;
+    background: transparent;
+    border: 1px dashed rgba(0, 243, 255, 0.3);
     color: #00f3ff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem; /* Matches other font sizes */
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    margin-top: 5px; /* Slight separation from legs */
+}
+.add-leg-btn:hover {
+    background: rgba(0, 243, 255, 0.05);
+    border-color: #00f3ff;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
 }
 
-.add-photo-btn span {
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
+/* Footer Action */
 .initialize-btn {
   background: #00f3ff;
   color: #000;
   border: none;
-  padding: 18px;
+  padding: 15px;
   width: 100%;
-  margin-top: 25px;
   font-family: 'Orbitron', sans-serif;
   font-size: 1.1rem;
   font-weight: 800;
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 2px;
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+  transition: all 0.3s;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  margin-top: 10px;
 }
 .initialize-btn:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 0 40px rgba(0, 243, 255, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.6);
 }
-.initialize-btn:active {
-    transform: translateY(1px) scale(0.98);
+
+/* Scrollbar styling */
+.odyssey-modal::-webkit-scrollbar {
+  width: 6px;
+}
+.odyssey-modal::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.odyssey-modal::-webkit-scrollbar-thumb {
+  background: rgba(0, 243, 255, 0.2);
+  border-radius: 3px;
+}
+.odyssey-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 243, 255, 0.4);
 }

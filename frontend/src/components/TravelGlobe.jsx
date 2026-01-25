@@ -258,12 +258,12 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
       atmosphereAltitude={0.15}
       
       arcsData={arcsData}
-      arcColor={d => d.active ? ['#00f2ff', '#ffffff'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']} 
+      arcColor={d => d.active ? ['#00f2ff', '#ffffff'] : ['rgba(0, 242, 255, 0.3)', 'rgba(0, 242, 255, 0.1)']} 
       arcDashLength={0.4}
       arcDashGap={0.2}
-      arcDashAnimateTime={d => d.active ? 1000 : 3000}
+      arcDashAnimateTime={d => d.active ? 1000 : 5000}
       arcAltitude={d => d.active ? 0.25 : 0.1}
-      arcStroke={d => d.active ? 1.0 : 0.3}
+      arcStroke={d => d.active ? 1.0 : 0.5}
 
       // Radar Beacons on surface
       ringsData={cityClusters.map(c => ({ lat: c.lat, lng: c.lng }))}
