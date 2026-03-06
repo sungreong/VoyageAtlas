@@ -81,7 +81,20 @@ const App = () => {
     return trips.find(t => t.id === selectedTripId);
   }, [trips, selectedTripId]);
 
-  
+  // Format datetime string to readable date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown Date';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
   // Upload related state
   const fileInputRef = React.useRef(null);
   const [uploadingEventId, setUploadingEventId] = useState(null);
@@ -352,9 +365,28 @@ const App = () => {
 
       {/* Legacy Mini Event Info (Only if needed, hiding for now if Dashboard covers it) */}
       {(showEventInfo && (selectedCity || (currentEventIndex >= 0 && events[currentEventIndex]))) && (
-         <div className="media-preview glass-panel wide-panel" style={{display: 'none'}}> 
+         <div className="media-preview glass-panel wide-panel" style={{display: 'none'}}>
             {/* Hiding legacy panel to force Dashboard usage */}
          </div>
+      )}
+
+      {/* Flight Route Display */}
+      {isPlaying && events.length > 0 && currentEventIndex >= 0 && (
+        <div
+          key={currentEventIndex}
+          className="flight-route-display"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="route">
+            {events[currentEventIndex].from_name}
+            <span className="arrow">→</span>
+            {events[currentEventIndex].to_name}
+          </div>
+          <div className="date">
+            {formatDate(events[currentEventIndex].start_datetime)}
+          </div>
+        </div>
       )}
 
       {/* Controls Container */}

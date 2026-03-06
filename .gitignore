@@ -36,3 +36,4 @@ pnpm-debug.log*
 .agent
 .claude
 CLAUDE.md
+ai_docs

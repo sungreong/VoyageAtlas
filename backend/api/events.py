@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
@@ -10,12 +11,13 @@ from utils.geocoder import geocode_city
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 import urllib.parse
-import json
 import tempfile
 import shutil
 from utils.media_analyzer import analyze_media
 from utils.clustering import cluster_media_to_suggestions
 from utils.media_utils import get_media_type
+import pandas as pd
+from io import BytesIO
 
 def get_s3_client():
     endpoint = os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
@@ -88,6 +90,41 @@ def read_trips(session: Session = Depends(get_session)):
         .order_by(Trip.created_at.desc())
     ).all()
     return trips
+
+@router.get("/trips/summary")
+def get_trips_summary(session: Session = Depends(get_session)):
+    """
+    Lightweight trip summary for export UI.
+    Returns id, title, date range, and visited destinations per trip.
+    """
+    trips = session.exec(
+        select(Trip)
+        .options(selectinload(Trip.events))
+        .order_by(Trip.created_at.desc())
+    ).all()
+
+    result = []
+    for trip in trips:
+        events = trip.events
+        if events:
+            dates = [e.start_datetime for e in events]
+            start = min(dates)
+            end = max(dates)
+            destinations = list(dict.fromkeys(e.to_name for e in sorted(events, key=lambda e: e.start_datetime)))
+        else:
+            start = end = None
+            destinations = []
+
+        result.append({
+            "id": trip.id,
+            "title": trip.title,
+            "start_date": start.isoformat() if start else None,
+            "end_date": end.isoformat() if end else None,
+            "destinations": destinations,
+            "event_count": len(events)
+        })
+
+    return result
 
 @router.get("/", response_model=List[TravelEventRead])
 def read_events(session: Session = Depends(get_session)):
@@ -504,6 +541,269 @@ async def import_data(data: dict, session: Session = Depends(get_session)):
         "imported_trips": import_count_trips,
         "imported_events": import_count_events
     }
+
+# Enhanced Export Helper Functions
+
+def build_basic_export_data(trips_with_events):
+    """Extract basic route data (from→to) excluding media"""
+    result = {
+        "version": "2.0",
+        "export_date": datetime.now().isoformat(),
+        "detail_level": "basic",
+        "trips": []
+    }
+
+    for trip in trips_with_events:
+        trip_data = {
+            "trip_id": trip.id,
+            "trip_title": trip.title,
+            "routes": []
+        }
+
+        for event in trip.events:
+            route = {
+                "from": event.from_name,
+                "to": event.to_name,
+                "from_lat": event.from_lat,
+                "from_lng": event.from_lng,
+                "to_lat": event.to_lat,
+                "to_lng": event.to_lng,
+                "date": event.start_datetime.isoformat(),
+                "transport": event.transport
+            }
+            trip_data["routes"].append(route)
+
+        result["trips"].append(trip_data)
+
+    return result
+
+def build_detailed_export_data(trips_with_events, session):
+    """Extract detailed metadata including trip info and preparations"""
+    result = {
+        "version": "2.0",
+        "export_date": datetime.now().isoformat(),
+        "detail_level": "detailed",
+        "trips": []
+    }
+
+    for trip in trips_with_events:
+        # Get preparations for this trip
+        preps = session.exec(
+            select(TripPreparation).where(TripPreparation.trip_id == trip.id)
+        ).all()
+
+        trip_data = {
+            "trip_id": trip.id,
+            "trip_title": trip.title,
+            "trip_description": trip.description,
+            "trip_note": trip.note,
+            "trip_cost": trip.cost,
+            "created_at": trip.created_at.isoformat(),
+            "routes": [],
+            "preparations": []
+        }
+
+        for event in trip.events:
+            route = {
+                "event_id": event.id,
+                "title": event.title,
+                "from": event.from_name,
+                "to": event.to_name,
+                "from_lat": event.from_lat,
+                "from_lng": event.from_lng,
+                "to_lat": event.to_lat,
+                "to_lng": event.to_lng,
+                "date": event.start_datetime.isoformat(),
+                "transport": event.transport,
+                "note": event.note
+            }
+            trip_data["routes"].append(route)
+
+        for prep in preps:
+            trip_data["preparations"].append({
+                "category": prep.category,
+                "item": prep.item_name,
+                "checked": prep.is_checked
+            })
+
+        result["trips"].append(trip_data)
+
+    return result
+
+def export_to_excel_basic(data):
+    """Convert basic export data to Excel BytesIO"""
+    rows = []
+    for trip in data["trips"]:
+        for route in trip["routes"]:
+            rows.append({
+                "Trip Title": trip["trip_title"],
+                "From": route["from"],
+                "To": route["to"],
+                "From Latitude": route["from_lat"],
+                "From Longitude": route["from_lng"],
+                "To Latitude": route["to_lat"],
+                "To Longitude": route["to_lng"],
+                "Date": route["date"],
+                "Transport": route["transport"]
+            })
+
+    df = pd.DataFrame(rows)
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Routes', index=False)
+
+    output.seek(0)
+    return output
+
+def export_to_excel_detailed(data):
+    """Convert detailed export data to multi-sheet Excel"""
+    # Sheet 1: Trips
+    trip_rows = []
+    for trip in data["trips"]:
+        trip_rows.append({
+            "Trip ID": trip["trip_id"],
+            "Title": trip["trip_title"],
+            "Description": trip.get("trip_description"),
+            "Note": trip.get("trip_note"),
+            "Cost": trip.get("trip_cost"),
+            "Created At": trip["created_at"]
+        })
+
+    # Sheet 2: Routes
+    route_rows = []
+    for trip in data["trips"]:
+        for route in trip["routes"]:
+            route_rows.append({
+                "Trip Title": trip["trip_title"],
+                "Event ID": route["event_id"],
+                "Event Title": route["title"],
+                "From": route["from"],
+                "To": route["to"],
+                "From Latitude": route["from_lat"],
+                "From Longitude": route["from_lng"],
+                "To Latitude": route["to_lat"],
+                "To Longitude": route["to_lng"],
+                "Date": route["date"],
+                "Transport": route["transport"],
+                "Note": route.get("note")
+            })
+
+    # Sheet 3: Preparations
+    prep_rows = []
+    for trip in data["trips"]:
+        for prep in trip.get("preparations", []):
+            prep_rows.append({
+                "Trip Title": trip["trip_title"],
+                "Category": prep["category"],
+                "Item": prep["item"],
+                "Checked": prep["checked"]
+            })
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(trip_rows).to_excel(writer, sheet_name='Trips', index=False)
+        pd.DataFrame(route_rows).to_excel(writer, sheet_name='Routes', index=False)
+        if prep_rows:
+            pd.DataFrame(prep_rows).to_excel(writer, sheet_name='Preparations', index=False)
+
+    output.seek(0)
+    return output
+
+@router.get("/export/enhanced")
+def export_enhanced(
+    format: str = "json",
+    detail_level: str = "basic",
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    trip_ids: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """
+    Enhanced export with format and detail level options.
+
+    - format: "json" or "excel"
+    - detail_level: "basic" (routes only) or "detailed" (full metadata)
+    - trip_ids: comma-separated trip IDs to filter (e.g. "1,3,5"). If omitted, exports all.
+    - Excludes all media URLs and EXIF data
+    """
+    # Validate parameters
+    if format not in ["json", "excel"]:
+        raise HTTPException(status_code=400, detail="Invalid format. Use 'json' or 'excel'")
+
+    if detail_level not in ["basic", "detailed"]:
+        raise HTTPException(status_code=400, detail="Invalid detail_level. Use 'basic' or 'detailed'")
+
+    # Build query
+    query = select(Trip).options(selectinload(Trip.events))
+
+    # Apply trip_ids filter if provided
+    if trip_ids:
+        parsed_ids = [int(i.strip()) for i in trip_ids.split(',') if i.strip().isdigit()]
+        if parsed_ids:
+            trips_data = session.exec(
+                query.where(Trip.id.in_(parsed_ids)).order_by(Trip.created_at.desc())
+            ).all()
+        else:
+            trips_data = []
+    # Apply date filtering if provided (filter on earliest event in trip)
+    elif start_date or end_date:
+        # Convert timezone-aware datetimes to naive for comparison
+        start_date_naive = start_date.replace(tzinfo=None) if start_date else None
+        end_date_naive = end_date.replace(tzinfo=None) if end_date else None
+
+        trips = session.exec(query).all()
+        filtered_trips = []
+        for trip in trips:
+            if not trip.events:
+                continue
+            trip_dates = [e.start_datetime for e in trip.events]
+            earliest = min(trip_dates)
+            latest = max(trip_dates)
+
+            if start_date_naive and latest < start_date_naive:
+                continue
+            if end_date_naive and earliest > end_date_naive:
+                continue
+
+            filtered_trips.append(trip)
+        trips_data = filtered_trips
+    else:
+        trips_data = session.exec(query.order_by(Trip.created_at.desc())).all()
+
+    # Build export data structure
+    if detail_level == "basic":
+        export_data = build_basic_export_data(trips_data)
+    else:
+        export_data = build_detailed_export_data(trips_data, session)
+
+    # Generate filename
+    date_str = datetime.now().strftime("%Y-%m-%d")
+
+    # Return based on format
+    if format == "json":
+        filename = f"voyage_atlas_export_{detail_level}_{date_str}.json"
+        return JSONResponse(
+            content=export_data,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    else:  # excel
+        if detail_level == "basic":
+            excel_file = export_to_excel_basic(export_data)
+        else:
+            excel_file = export_to_excel_detailed(export_data)
+
+        filename = f"voyage_atlas_export_{detail_level}_{date_str}.xlsx"
+
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
 
 @router.delete("/all/clear")
 def delete_all_events(session: Session = Depends(get_session)):

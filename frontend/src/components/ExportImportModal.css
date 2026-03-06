@@ -1,0 +1,117 @@
+/* ============================================================
+   ExportImportModal.css — Export/Import 전용 스타일
+   모든 클래스는 epm- 접두사로 기존 스타일과 완전히 격리
+   ============================================================ */
+
+/* ── 기간 필터 패널 ── */
+.epm-date-panel {
+  border: 1px solid rgba(0, 255, 238, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 255, 238, 0.025);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.epm-date-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.epm-date-hint {
+  flex: 1;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.4;
+}
+
+.epm-clear-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 60, 60, 0.12);
+  border: 1px solid rgba(255, 60, 60, 0.35);
+  color: rgba(255, 110, 110, 0.9);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.epm-clear-btn:hover {
+  background: rgba(255, 60, 60, 0.28);
+  border-color: rgba(255, 80, 80, 0.7);
+}
+
+/* 날짜 입력 행: 레이블 / 입력창 / ~ / 레이블 / 입력창 을 깔끔하게 배치 */
+.epm-date-row {
+  display: flex;
+  align-items: flex-end;  /* 레이블+입력 쌍이 아래 기준 정렬 */
+  gap: 0;
+}
+
+.epm-date-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.epm-date-label {
+  font-size: 0.65rem;
+  font-family: 'Orbitron', sans-serif;
+  color: rgba(0, 255, 238, 0.65);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.epm-date-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 255, 238, 0.3);
+  padding: 8px 10px;
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  color-scheme: dark;
+}
+
+.epm-date-input:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  background: rgba(0, 255, 238, 0.05);
+  box-shadow: 0 0 10px rgba(0, 255, 238, 0.12);
+}
+
+/* ~ 구분자: 고정 너비, input 높이 중앙에 오도록 padding 조정 */
+.epm-date-sep {
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: rgba(0, 255, 238, 0.5);
+  font-weight: bold;
+  /* input padding(8px) + border(1px) × 2 = 18px → 절반 9px + 여유 */
+  padding-bottom: 9px;
+}
+
+/* ── 서브 레이블 (여행 선택, 기간 필터 등 섹션 구분) ── */
+.epm-sub-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 1px;
+  color: rgba(0, 255, 238, 0.7);
+  text-transform: uppercase;
+}

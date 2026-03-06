@@ -280,3 +280,62 @@ export function getGreatCircleDistance(lat1, lng1, lat2, lng2) {
 
   return R * c;
 }
+
+// ============================================================================
+// CAMERA ALTITUDE CALCULATION
+// ============================================================================
+
+/**
+ * Calculates optimal camera altitude for framing a flight segment
+ * Lower altitude = more zoomed in, better detail
+ *
+ * @param {number} distance - Flight distance in kilometers
+ * @param {string} phase - 'start' or 'end' of flight
+ * @returns {number} Camera altitude (0.7 to 2.5)
+ */
+export function calculateCameraAltitude(distance, phase = 'start') {
+  // Handle invalid input
+  if (isNaN(distance) || distance === undefined || distance === null) {
+    return 1.5; // Safe default
+  }
+
+  // Base altitude calculation with smooth curve
+  let baseAltitude;
+
+  if (distance < 200) {
+    // Very short flights: extreme close-up, city-level detail
+    baseAltitude = 0.4;
+  } else if (distance < 500) {
+    // Short flights: very close regional focus
+    // Interpolate between 0.4 and 0.7
+    const t = (distance - 200) / 300;
+    baseAltitude = lerp(0.4, 0.7, t);
+  } else if (distance < 1000) {
+    // Medium-short flights: regional focus
+    const t = (distance - 500) / 500;
+    baseAltitude = lerp(0.7, 1.0, t);
+  } else if (distance < 3000) {
+    // Medium flights: country-scale
+    const t = (distance - 1000) / 2000;
+    baseAltitude = lerp(1.0, 1.4, t);
+  } else if (distance < 6000) {
+    // Long flights: continental
+    const t = (distance - 3000) / 3000;
+    baseAltitude = lerp(1.5, 1.9, t);
+  } else if (distance < 10000) {
+    // Ultra-long: intercontinental
+    const t = (distance - 6000) / 4000;
+    baseAltitude = lerp(1.9, 2.2, t);
+  } else {
+    // Extreme distances: half-globe view
+    baseAltitude = Math.min(2.2 + (distance - 10000) / 5000, 2.5);
+  }
+
+  // Zoom in more at destination (end phase) for smoother landing view
+  if (phase === 'end') {
+    baseAltitude = baseAltitude * 0.85; // 15% closer at destination
+  }
+
+  // Clamp to safe bounds
+  return Math.max(0.7, Math.min(baseAltitude, 2.5));
+}

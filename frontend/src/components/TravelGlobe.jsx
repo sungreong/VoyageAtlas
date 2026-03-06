@@ -8,6 +8,7 @@ import {
   calculatePitch,
   calculateSpeed,
   getGreatCircleDistance,
+  calculateCameraAltitude,
   FlightPhase
 } from '../utils/flightPhysics';
 
@@ -266,22 +267,40 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
 
       // Camera Animation - only auto-follow if NOT in free camera mode
       if (!freeCameraMode) {
-        const initialCameraAlt = distance > 3000 ? 2.5 : 2.2;
-        const finalCameraAlt = distance > 3000 ? 1.8 : 1.5;
+        // Calculate optimal altitudes based on flight distance
+        const initialCameraAlt = calculateCameraAltitude(distance, 'start');
+        const finalCameraAlt = calculateCameraAltitude(distance, 'end');
 
+        // Calculate arc midpoint for better framing
+        const midpointLat = (current.from_lat + current.to_lat) / 2;
+        const midpointLng = (current.from_lng + current.to_lng) / 2;
+        const midpointAlt = initialCameraAlt * 1.15; // Slightly zoom out at midpoint to see full arc
+
+        // 3-phase camera movement: from → midpoint → to
+        // Phase 1: Move to origin city
         globeEl.current.pointOfView({
           lat: current.from_lat,
           lng: current.from_lng,
           altitude: initialCameraAlt
         }, 800);
 
+        // Phase 2: Pan to arc midpoint (shows full flight path)
+        setTimeout(() => {
+          globeEl.current.pointOfView({
+            lat: midpointLat,
+            lng: midpointLng,
+            altitude: midpointAlt
+          }, 2000); // 2 seconds to reach midpoint
+        }, 1000);
+
+        // Phase 3: Continue to destination
         setTimeout(() => {
           globeEl.current.pointOfView({
             lat: current.to_lat,
             lng: current.to_lng,
             altitude: finalCameraAlt
-          }, 4000);
-        }, 1000);
+          }, 2000); // 2 seconds from midpoint to destination
+        }, 3000); // Start after reaching midpoint
       }
       // If freeCameraMode === true, camera stays wherever user positioned it
     } else {
@@ -298,10 +317,17 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
       // Gently return to auto-follow position when re-locking camera
       const current = events[currentEventIndex];
       if (current && globeEl.current) {
+        // Calculate distance for optimal altitude
+        const distance = getGreatCircleDistance(
+          current.from_lat, current.from_lng,
+          current.to_lat, current.to_lng
+        );
+        const optimalAlt = calculateCameraAltitude(distance, 'start');
+
         globeEl.current.pointOfView({
           lat: (current.from_lat + current.to_lat) / 2,  // Midpoint between origin and destination
           lng: (current.from_lng + current.to_lng) / 2,
-          altitude: 2.0
+          altitude: optimalAlt * 1.15  // Slightly higher to see arc
         }, 1500);  // Smooth 1.5s transition
       }
     }

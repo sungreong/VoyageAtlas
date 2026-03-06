@@ -5,6 +5,7 @@ sqlmodel
 pydantic
 python-multipart
 pandas
+openpyxl
 boto3
 python-dotenv
 requests
