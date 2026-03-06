@@ -3,6 +3,7 @@ import axios from 'axios';
 import { X, Edit2, Trash2, Calendar, Map, Film } from 'lucide-react';
 import './DataManagement.css';
 import EditEventModal from './EditEventModal';
+import { API_BASE } from '../api/client';
 
 const DataManagement = ({ events = [], onClose, onRefresh }) => {
   const [editingEvent, setEditingEvent] = useState(null);
@@ -10,7 +11,7 @@ const DataManagement = ({ events = [], onClose, onRefresh }) => {
   const handleDelete = async (eventId) => {
     if (window.confirm("Are you sure you want to delete this event? This action will remove all associated media.")) {
       try {
-        await axios.delete(`/api/events/${eventId}`);
+        await axios.delete(`${API_BASE}/events/${eventId}`);
         onRefresh(); // Refresh parent list
       } catch (err) {
         console.error("Failed to delete event", err);
@@ -31,7 +32,7 @@ const DataManagement = ({ events = [], onClose, onRefresh }) => {
         note
       };
       
-      await axios.patch(`/api/events/${id}`, payload);
+      await axios.patch(`${API_BASE}/events/${id}`, payload);
       setEditingEvent(null);
       onRefresh(); // Refresh parent list
     } catch (err) {

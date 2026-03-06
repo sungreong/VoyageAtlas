@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE } from './api/client';
 import TravelGlobe from './components/TravelGlobe';
 import CreateOdysseyModal from './components/CreateOdysseyModal';
 import EventManager from './components/EventManager';
@@ -15,14 +16,13 @@ import TripDashboard from './components/TripDashboard';
 import './components/HUD.css';
 import { calculateDistance, formatDistance } from './utils';
 
-const API_BASE = '/api';
-
 const App = () => {
   const [events, setEvents] = useState([]);
   const [trips, setTrips] = useState([]); // Grouped data from backend
   const [currentEventIndex, setCurrentEventIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [freeCameraMode, setFreeCameraMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [panoUrl, setPanoUrl] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -196,14 +196,15 @@ const App = () => {
 
   return (
     <div className="app-container">
-       <TravelGlobe 
-          events={events} 
+       <TravelGlobe
+          events={events}
           currentEventIndex={currentEventIndex}
           isPlaying={isPlaying}
           speed={speed}
+          freeCameraMode={freeCameraMode}
           onGlobeClick={handleGlobeClick}
           onMarkerClick={handleMarkerClick}
-          forcedCamera={forcedCamera} 
+          forcedCamera={forcedCamera}
        />
 
        {/* Top Left HUD */}
@@ -377,12 +378,26 @@ const App = () => {
         </div>
 
         <div className="speed-toggle">
-          <select value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))}>
+          <label htmlFor="speed-select">SPEED</label>
+          <select
+            id="speed-select"
+            value={speed}
+            onChange={(e) => setSpeed(parseFloat(e.target.value))}
+          >
             <option value="0.5">0.5x</option>
             <option value="1">1.0x</option>
             <option value="2">2.0x</option>
+            <option value="5">5.0x</option>
           </select>
         </div>
+
+        <button
+          className={`camera-toggle ${freeCameraMode ? 'unlocked' : 'locked'}`}
+          onClick={() => setFreeCameraMode(!freeCameraMode)}
+          title={freeCameraMode ? 'Camera Unlocked (Manual Control)' : 'Camera Locked (Auto-Follow)'}
+        >
+          {freeCameraMode ? '🔓 FREE' : '🔒 AUTO'}
+        </button>
       </div>
 
        {/* Hidden file input for uploads */}

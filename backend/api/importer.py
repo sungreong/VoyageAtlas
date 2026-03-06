@@ -10,6 +10,7 @@ import json
 from typing import List
 from datetime import date
 from sqlalchemy.orm import selectinload
+from utils.media_utils import get_media_type
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -47,7 +48,7 @@ async def import_csv(file: UploadFile = File(...), trip_id: int = 1, session: Se
                 media = EventMedia(
                     event_id=event.id,
                     url=str(media_url),
-                    media_type="pano_image" if "sphere" in str(media_url).lower() else "image"
+                    media_type=get_media_type(str(media_url))
                 )
                 session.add(media)
                 

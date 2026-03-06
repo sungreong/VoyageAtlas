@@ -2,9 +2,8 @@ import React, { useState, useRef } from 'react';
 import { X, Calendar, MapPin, Camera, Plane, Clock, Plus, ArrowRight, Moon } from 'lucide-react';
 import axios from 'axios';
 import './TripDetailModal.css';
-import '../App.css'; 
-
-const API_BASE = '/api';
+import '../App.css';
+import { API_BASE } from '../api/client';
 
 const TripDetailModal = ({ trip, onClose, onRefresh, onViewMedia }) => {
   const [activeTab, setActiveTab] = useState('journal'); // 'journal'

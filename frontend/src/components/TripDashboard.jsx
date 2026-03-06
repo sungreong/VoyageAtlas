@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Calendar, MapPin, Camera, Plane, Clock, Plus, ArrowRight, Moon, Grid, List as ListIcon, Share2, DollarSign, Activity, Edit } from 'lucide-react';
 import axios from 'axios';
-import './TripDashboard.css'; 
+import './TripDashboard.css';
 import './Gallery.css';
-import '../App.css'; 
+import '../App.css';
 import TripPreparation from './TripPreparation';
 import TripOverview from './TripOverview';
 import TripGallery from './TripGallery';
 import TripJourney from './TripJourney';
-
-const API_BASE = '/api';
+import { API_BASE } from '../api/client';
 
 // --- Helper: Calculate Trip Stats ---
 const useTripStats = (trip) => {

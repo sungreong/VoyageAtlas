@@ -15,6 +15,16 @@ import tempfile
 import shutil
 from utils.media_analyzer import analyze_media
 from utils.clustering import cluster_media_to_suggestions
+from utils.media_utils import get_media_type
+
+def get_s3_client():
+    endpoint = os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
+    return boto3.client(
+        's3',
+        endpoint_url=endpoint if endpoint.startswith('http') else f"http://{endpoint}",
+        aws_access_key_id=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
+        aws_secret_access_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin')
+    )
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -221,33 +231,8 @@ async def upload_media(event_id: int, files: List[UploadFile] = File(...), sessi
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
     
-    endpoint = os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
-    s3 = boto3.client(
-        's3',
-        endpoint_url=endpoint if endpoint.startswith('http') else f"http://{endpoint}",
-        aws_access_key_id=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
-        aws_secret_access_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin')
-    )
+    s3 = get_s3_client()
     bucket_name = os.getenv('MINIO_BUCKET', 'voyage-media')
-    
-    # Ensure bucket exists
-    try:
-        s3.head_bucket(Bucket=bucket_name)
-    except Exception:
-        s3.create_bucket(Bucket=bucket_name)
-        # Apply public read policy to new bucket
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [{
-                "Sid": "PublicRead",
-                "Effect": "Allow",
-                "Principal": "*",
-                "Action": ["s3:GetObject"],
-                "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
-            }]
-        }
-        s3.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(policy))
-        print(f"DEBUG: Created bucket {bucket_name} and applied public read policy")
 
     new_media_list = []
     print(f"DEBUG: upload_media started for event {event_id} with {len(files)} files")
@@ -307,13 +292,7 @@ async def upload_media(event_id: int, files: List[UploadFile] = File(...), sessi
             public_url_base = os.getenv('MEDIA_PUBLIC_URL', 'http://localhost:9999')
             
             # Determine media type
-            lower_filename = file.filename.lower()
-            if "pano" in lower_filename:
-                m_type = "pano_image"
-            elif any(lower_filename.endswith(ext) for ext in ['.mp4', '.mov', '.avi', '.mkv']):
-                m_type = "video"
-            else:
-                m_type = "image"
+            m_type = get_media_type(file.filename)
                 
             media = EventMedia(
                 event_id=target_event_id,
@@ -412,13 +391,7 @@ def delete_media(media_id: int, session: Session = Depends(get_session)):
     
     # Attempt to delete from Minio
     try:
-        endpoint = os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
-        s3 = boto3.client(
-            's3',
-            endpoint_url=endpoint if endpoint.startswith('http') else f"http://{endpoint}",
-            aws_access_key_id=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
-            aws_secret_access_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin')
-        )
+        s3 = get_s3_client()
         bucket_name = os.getenv('MINIO_BUCKET', 'voyage-media')
         
         # Extract object key from URL

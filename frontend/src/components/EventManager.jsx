@@ -3,8 +3,7 @@ import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calen
 import axios from 'axios';
 import './EventManager.css';
 import { calculateDistance, formatDistance } from '../utils';
-
-const API_BASE = '/api';
+import { API_BASE } from '../api/client';
 
 const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) => {
   // We ignore propEvents for the main list and fetch grouped data

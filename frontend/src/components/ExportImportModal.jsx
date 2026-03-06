@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Download, Upload, X, Calendar, FileJson, CheckCircle2, AlertCircle } from 'lucide-react';
-
-const API_BASE = '/api';
+import { API_BASE } from '../api/client';
 
 const ExportImportModal = ({ onClose, onRefresh }) => {
   const [startDate, setStartDate] = useState('');

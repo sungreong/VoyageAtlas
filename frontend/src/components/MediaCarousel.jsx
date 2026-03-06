@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { X, ChevronLeft, ChevronRight, Maximize2, Download, Expand, Trash2, Plus, Edit3, Save } from 'lucide-react';
 import './MediaCarousel.css';
+import { API_BASE } from '../api/client';
 
 const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -61,7 +62,7 @@ const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
     if (!window.confirm("Permanently delete this media?")) return;
     
     try {
-      await axios.delete(`/api/events/media/${mediaId}`);
+      await axios.delete(`${API_BASE}/events/media/${mediaId}`);
       const newList = localMediaList.filter(m => m.id !== mediaId);
       setLocalMediaList(newList);
       if (currentIndex >= newList.length) {
@@ -97,7 +98,7 @@ const MediaCarousel = ({ mediaList, initialIndex = 0, onClose, eventId }) => {
     }
 
     try {
-      const res = await axios.post(`/api/events/${targetEventId}/media`, formData, {
+      const res = await axios.post(`${API_BASE}/events/${targetEventId}/media`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       // Backend now returns the list of new media objects
