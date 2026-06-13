@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
-import { Download, Gauge, Loader2, Square, Video } from 'lucide-react';
+import { Download, Gauge, Loader2, RotateCcw, Square, Video } from 'lucide-react';
 import './SimulationExportPanel.css';
 
 const EXPORT_SPEEDS = [0.5, 1, 2, 4];
+
+const formatBytes = (value) => {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let size = bytes / 1024;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+};
 
 const SimulationExportPanel = ({
   eventCount,
@@ -54,6 +69,28 @@ const SimulationExportPanel = ({
             {recorder.status === 'saving' ? <Loader2 size={15} className="spin" /> : <Square size={14} />}
             <span>{recorder.status === 'saving' ? 'Saving' : 'Stop'}</span>
           </button>
+        ) : isComplete && recorder.downloadUrl ? (
+          <>
+            <button
+              type="button"
+              className="export-download-btn"
+              onClick={recorder.downloadRecording}
+              title="Download recorded simulation"
+            >
+              <Download size={15} />
+              <span>Download</span>
+            </button>
+            <button
+              type="button"
+              className="export-record-again-btn"
+              onClick={() => onStart(exportSpeed)}
+              disabled={!canExport}
+              title="Record again"
+            >
+              <RotateCcw size={14} />
+              <span>Again</span>
+            </button>
+          </>
         ) : (
           <button
             type="button"
@@ -71,6 +108,9 @@ const SimulationExportPanel = ({
       {(isRecording || isComplete || isError || recorder.message) && (
         <div className={`export-status ${recorder.status}`}>
           <span>{recorder.message || 'Ready to record.'}</span>
+          {isComplete && recorder.fileName && (
+            <strong>{recorder.fileName} · {formatBytes(recorder.fileSize)}</strong>
+          )}
           <div className="export-progress" aria-hidden="true">
             <i style={{ transform: `scaleX(${recorder.progress || 0})` }} />
           </div>

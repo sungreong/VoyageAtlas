@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SEGMENT_DURATION_MS = 5000;
 const RECORDING_SETTLE_MS = 180;
@@ -29,6 +29,17 @@ const buildDownloadName = (extension) => {
   return `voyageatlas-simulation-${stamp}.${extension}`;
 };
 
+const downloadFile = (url, fileName) => {
+  if (!url || !fileName) return;
+
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+};
+
 export const useSimulationRecorder = ({
   globeRef,
   visibleEvents,
@@ -45,12 +56,25 @@ export const useSimulationRecorder = ({
   const progressTimerRef = useRef(null);
   const cancelledRef = useRef(false);
   const previousPlaybackRef = useRef(null);
+  const downloadUrlRef = useRef('');
   const [state, setState] = useState({
     status: 'idle',
     progress: 0,
     message: '',
-    fileName: ''
+    fileName: '',
+    downloadUrl: '',
+    fileSize: 0,
+    mimeType: ''
   });
+
+  const revokeDownloadUrl = useCallback(() => {
+    if (downloadUrlRef.current) {
+      URL.revokeObjectURL(downloadUrlRef.current);
+      downloadUrlRef.current = '';
+    }
+  }, []);
+
+  useEffect(() => () => revokeDownloadUrl(), [revokeDownloadUrl]);
 
   const clearTimers = useCallback(() => {
     clearTimeout(stopTimerRef.current);
@@ -79,7 +103,10 @@ export const useSimulationRecorder = ({
       status: 'idle',
       progress: 0,
       message: 'Recording cancelled.',
-      fileName: ''
+      fileName: '',
+      downloadUrl: '',
+      fileSize: 0,
+      mimeType: ''
     });
   }, [clearTimers, setCurrentEventIndex, setIsPlaying, setSpeed, stopStream]);
 
@@ -91,7 +118,10 @@ export const useSimulationRecorder = ({
         status: 'error',
         progress: 0,
         message: 'No visible routes to record.',
-        fileName: ''
+        fileName: '',
+        downloadUrl: '',
+        fileSize: 0,
+        mimeType: ''
       });
       return;
     }
@@ -101,7 +131,10 @@ export const useSimulationRecorder = ({
         status: 'error',
         progress: 0,
         message: 'This browser cannot record canvas video.',
-        fileName: ''
+        fileName: '',
+        downloadUrl: '',
+        fileSize: 0,
+        mimeType: ''
       });
       return;
     }
@@ -117,11 +150,15 @@ export const useSimulationRecorder = ({
     const totalDurationMs = Math.max(1400, Math.ceil((visibleEvents.length * SEGMENT_DURATION_MS) / speedValue) + 650);
 
     cancelledRef.current = false;
+    revokeDownloadUrl();
     setState({
       status: 'recording',
       progress: 0,
       message: 'Preparing route capture...',
-      fileName: ''
+      fileName: '',
+      downloadUrl: '',
+      fileSize: 0,
+      mimeType: ''
     });
 
     try {
@@ -196,29 +233,31 @@ export const useSimulationRecorder = ({
       const extension = getVideoExtension(blobType);
       const fileName = buildDownloadName(extension);
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadUrlRef.current = url;
+      downloadFile(url, fileName);
 
       setState({
         status: 'complete',
         progress: 1,
-        message: `${fileName} downloaded.`,
-        fileName
+        message: 'Video ready. Download is available now.',
+        fileName,
+        downloadUrl: url,
+        fileSize: blob.size,
+        mimeType: blobType
       });
     } catch (error) {
       clearTimers();
       stopStream();
       setIsPlaying(false);
+      revokeDownloadUrl();
       setState({
         status: 'error',
         progress: 0,
         message: error.message || 'Could not record this simulation.',
-        fileName: ''
+        fileName: '',
+        downloadUrl: '',
+        fileSize: 0,
+        mimeType: ''
       });
     } finally {
       recorderRef.current = null;
@@ -236,6 +275,7 @@ export const useSimulationRecorder = ({
     isPlaying,
     setCurrentEventIndex,
     setIsPlaying,
+    revokeDownloadUrl,
     setSpeed,
     speed,
     state.status,
@@ -243,10 +283,15 @@ export const useSimulationRecorder = ({
     visibleEvents
   ]);
 
+  const downloadRecording = useCallback(() => {
+    downloadFile(state.downloadUrl, state.fileName);
+  }, [state.downloadUrl, state.fileName]);
+
   return {
     ...state,
     isRecording: state.status === 'recording' || state.status === 'saving',
     startRecording,
-    cancelRecording
+    cancelRecording,
+    downloadRecording
   };
 };

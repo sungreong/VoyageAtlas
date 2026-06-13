@@ -58,6 +58,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .export-speed-control {
@@ -89,7 +91,9 @@
 }
 
 .export-start-btn,
-.export-stop-btn {
+.export-stop-btn,
+.export-download-btn,
+.export-record-again-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -119,12 +123,40 @@
   background: rgba(237, 150, 58, 0.12);
 }
 
+.export-download-btn {
+  color: #061313;
+  border: 1px solid rgba(220, 236, 184, 0.78);
+  background: #dcecb8;
+}
+
+.export-record-again-btn {
+  min-width: 74px;
+  color: #9ecfc6;
+  border: 1px solid rgba(158, 207, 198, 0.24);
+  background: rgba(158, 207, 198, 0.08);
+}
+
+.export-record-again-btn:hover {
+  background: rgba(158, 207, 198, 0.14);
+}
+
 .export-status {
   grid-column: 1 / -1;
   display: grid;
-  gap: 6px;
+  gap: 5px;
   color: rgba(240, 247, 244, 0.64);
   font-size: 0.72rem;
+  min-width: 0;
+}
+
+.export-status strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(240, 247, 244, 0.78);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .export-status.complete {
