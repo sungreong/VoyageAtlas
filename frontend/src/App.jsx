@@ -10,11 +10,69 @@ import TravelCalendar from './components/TravelCalendar';
 import DataManagement from './components/DataManagement';
 import ExportImportModal from './components/ExportImportModal';
 import ContinentStats from './components/ContinentStats';
+import GlobeJourneyInspector from './components/GlobeJourneyInspector';
+import SimulationExportPanel from './components/SimulationExportPanel';
 import './App.css';
-import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2, Globe } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2, Globe, AlertTriangle, RefreshCcw, Lock, Unlock } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
 import './components/HUD.css';
 import { calculateDistance, formatDistance } from './utils';
+import { useSimulationRecorder } from './hooks/useSimulationRecorder';
+
+const getEventDateKey = (dateString) => {
+  if (!dateString) return '';
+
+  const text = String(dateString);
+  const storedDate = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (storedDate) return storedDate[1];
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getEventDateParts = (dateString) => {
+  const dateKey = getEventDateKey(dateString);
+  if (!dateKey) return null;
+
+  const [year, month] = dateKey.split('-');
+  const monthNumber = Number(month);
+  const half = `${year}-H${monthNumber <= 6 ? 1 : 2}`;
+  const quarter = `${year}-Q${Math.ceil(monthNumber / 3)}`;
+
+  return {
+    dateKey,
+    year,
+    month: `${year}-${month}`,
+    half,
+    quarter
+  };
+};
+
+const getEventTransport = (event, fallback = 'plane') => {
+  const raw = String(event?.transport || fallback || 'plane').toLowerCase();
+  if (['plane', 'flight', 'air', 'airplane'].includes(raw)) return 'plane';
+  if (['starship', 'rocket', 'spacecraft', 'spaceship'].includes(raw)) return 'starship';
+  if (['ship', 'boat', 'ferry', 'cruise'].includes(raw)) return 'ship';
+  if (['train', 'rail'].includes(raw)) return 'train';
+  if (['car', 'bus', 'drive', 'road'].includes(raw)) return 'ground';
+  return ['ufo', 'hero', 'comet'].includes(raw) ? raw : 'plane';
+};
+
+const TRANSPORT_COPY = {
+  plane: { label: 'Flight', status: 'In flight', metricA: 'Cruise alt', metricB: 'Air speed' },
+  starship: { label: 'Orbital leg', status: 'Launch-ready', metricA: 'Orbit arc', metricB: 'Boost speed' },
+  ship: { label: 'Sea route', status: 'At sea', metricA: 'Harbor arrival', metricB: 'Route speed' },
+  train: { label: 'Rail leg', status: 'On rail', metricA: 'Track leg', metricB: 'Rail pace' },
+  ground: { label: 'Ground leg', status: 'On route', metricA: 'Road leg', metricB: 'Drive pace' },
+  ufo: { label: 'Traveler', status: 'Cruising', metricA: 'Altitude', metricB: 'Speed' },
+  hero: { label: 'Traveler', status: 'Cruising', metricA: 'Altitude', metricB: 'Speed' },
+  comet: { label: 'Traveler', status: 'Cruising', metricA: 'Altitude', metricB: 'Speed' }
+};
 
 const App = () => {
   const [events, setEvents] = useState([]);
@@ -22,6 +80,7 @@ const App = () => {
   const [currentEventIndex, setCurrentEventIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [vehicleMode, setVehicleMode] = useState('plane');
   const [freeCameraMode, setFreeCameraMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [panoUrl, setPanoUrl] = useState(null);
@@ -38,6 +97,15 @@ const App = () => {
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
   const [selectedTripId, setSelectedTripId] = useState(null); 
   const [forcedCamera, setForcedCamera] = useState(null); // { lat, lng, altitude, duration }
+  const [dataError, setDataError] = useState(null);
+  const [globeFilter, setGlobeFilter] = useState({
+    dateMode: 'all',
+    dateValue: '',
+    dateFrom: '',
+    dateTo: '',
+    places: []
+  });
+  const globeCaptureRef = React.useRef(null);
   
   useEffect(() => {
     fetchEvents();
@@ -58,6 +126,7 @@ const App = () => {
 
   const fetchEvents = async () => {
     try {
+      setDataError(null);
       // Fetch both flat events for globe AND grouped trips for dashboard metadata
       const [eventsRes, tripsRes] = await Promise.all([
           axios.get(`${API_BASE}/events/`),
@@ -70,7 +139,13 @@ const App = () => {
       if (eventsRes.data.length > 0 && currentEventIndex === -1) setCurrentEventIndex(0);
       return eventsRes.data;
     } catch (err) {
-      console.error("Failed to fetch data", err);
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      const message = status
+        ? `Backend returned ${status}${detail ? `: ${detail}` : ''}`
+        : 'Backend is not reachable. Start the API on localhost:8888 or run docker compose.';
+      setDataError(message);
+      console.error("Failed to fetch VoyageAtlas data", err);
       return [];
     }
   };
@@ -80,6 +155,168 @@ const App = () => {
     if (!selectedTripId || trips.length === 0) return null;
     return trips.find(t => t.id === selectedTripId);
   }, [trips, selectedTripId]);
+
+  const dateBounds = React.useMemo(() => {
+    const dates = events
+      .map(event => getEventDateKey(event.start_datetime))
+      .filter(Boolean)
+      .sort();
+
+    return {
+      min: dates[0] || '',
+      max: dates[dates.length - 1] || ''
+    };
+  }, [events]);
+
+  const placeScopeOptions = React.useMemo(() => {
+    const places = new Map();
+    events.forEach(event => {
+      [event.from_name, event.to_name].forEach(name => {
+        if (!name) return;
+        places.set(name.trim().toLowerCase(), name);
+      });
+    });
+
+    return Array.from(places.values())
+      .sort((a, b) => a.localeCompare(b))
+      .map(name => ({ value: name, label: name }));
+  }, [events]);
+
+  const datePresetOptions = React.useMemo(() => {
+    const years = new Set();
+    const halves = new Map();
+    const quarters = new Map();
+    const months = new Map();
+
+    events.forEach(event => {
+      const dateParts = getEventDateParts(event.start_datetime);
+      if (!dateParts) return;
+
+      const { year, month, half, quarter } = dateParts;
+      years.add(year);
+      halves.set(half, `${year} ${half.endsWith('H1') ? '상반기' : '하반기'}`);
+      quarters.set(quarter, `${year} ${quarter.slice(-2)}`);
+      const [monthYear, monthNumber] = month.split('-');
+      const labelDate = new Date(Number(monthYear), Number(monthNumber) - 1, 1);
+      months.set(month, labelDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }));
+    });
+
+    return [
+      { value: 'all', label: 'All dates', group: 'Scope' },
+      ...Array.from(years)
+        .sort((a, b) => b.localeCompare(a))
+        .map(year => ({ value: `year:${year}`, label: `${year}`, group: 'Year' })),
+      ...Array.from(halves.entries())
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([value, label]) => ({ value: `half:${value}`, label, group: 'Half-year' })),
+      ...Array.from(quarters.entries())
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([value, label]) => ({ value: `quarter:${value}`, label, group: 'Quarter' })),
+      ...Array.from(months.entries())
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([value, label]) => ({ value: `month:${value}`, label, group: 'Month' })),
+      { value: 'range', label: 'Custom range', group: 'Custom' }
+    ];
+  }, [events]);
+
+  const visibleEvents = React.useMemo(() => {
+    return events
+      .map((event, index) => ({ ...event, __sourceIndex: index }))
+      .filter(event => {
+        if (globeFilter.dateMode && globeFilter.dateMode !== 'all') {
+          const dateParts = getEventDateParts(event.start_datetime);
+          if (!dateParts) return false;
+          const {
+            dateKey: eventDate,
+            year: eventYear,
+            month: eventMonth,
+            half: eventHalf,
+            quarter: eventQuarter
+          } = dateParts;
+
+          if (globeFilter.dateMode === 'year' && eventYear !== globeFilter.dateValue) return false;
+          if (globeFilter.dateMode === 'half' && eventHalf !== globeFilter.dateValue) return false;
+          if (globeFilter.dateMode === 'quarter' && eventQuarter !== globeFilter.dateValue) return false;
+          if (globeFilter.dateMode === 'month' && eventMonth !== globeFilter.dateValue) return false;
+          if (globeFilter.dateMode === 'range') {
+            if (globeFilter.dateFrom && eventDate < globeFilter.dateFrom) return false;
+            if (globeFilter.dateTo && eventDate > globeFilter.dateTo) return false;
+          }
+        }
+
+        if (globeFilter.places.length > 0) {
+          return globeFilter.places.includes(event.from_name) || globeFilter.places.includes(event.to_name);
+        }
+
+        return true;
+      });
+  }, [events, globeFilter]);
+
+  const currentVisibleIndex = React.useMemo(() => {
+    return visibleEvents.findIndex(event => event.__sourceIndex === currentEventIndex);
+  }, [currentEventIndex, visibleEvents]);
+
+  const currentVisibleEvent = currentVisibleIndex >= 0 ? visibleEvents[currentVisibleIndex] : null;
+
+  const visibleDistance = React.useMemo(() => {
+    return visibleEvents.reduce((total, event) => {
+      return total + calculateDistance(event.from_lat, event.from_lng, event.to_lat, event.to_lng);
+    }, 0);
+  }, [visibleEvents]);
+
+  const isGlobeFiltered = Boolean(globeFilter.dateMode !== 'all' || globeFilter.places.length);
+  const displayedDistance = isGlobeFiltered ? visibleDistance : totalOdysseyDistance;
+  const activeTransport = getEventTransport(currentVisibleEvent, vehicleMode);
+  const activeTransportCopy = TRANSPORT_COPY[activeTransport] || TRANSPORT_COPY.plane;
+  const activeLegDistance = currentVisibleEvent
+    ? calculateDistance(
+      currentVisibleEvent.from_lat,
+      currentVisibleEvent.from_lng,
+      currentVisibleEvent.to_lat,
+      currentVisibleEvent.to_lng
+    )
+    : 0;
+  const dateScopeLabel = (() => {
+    if (globeFilter.dateMode === 'year') return globeFilter.dateValue || 'Select year';
+    if (globeFilter.dateMode === 'half') {
+      return datePresetOptions.find(option => option.value === `half:${globeFilter.dateValue}`)?.label || 'Select half';
+    }
+    if (globeFilter.dateMode === 'quarter') {
+      return datePresetOptions.find(option => option.value === `quarter:${globeFilter.dateValue}`)?.label || 'Select quarter';
+    }
+    if (globeFilter.dateMode === 'month') {
+      return datePresetOptions.find(option => option.value === `month:${globeFilter.dateValue}`)?.label || 'Select month';
+    }
+    if (globeFilter.dateMode === 'range') {
+      return `${globeFilter.dateFrom || dateBounds.min || 'Start'} - ${globeFilter.dateTo || dateBounds.max || 'End'}`;
+    }
+    return 'All dates';
+  })();
+  const placeScopeLabel = globeFilter.places.length
+    ? globeFilter.places.join(', ')
+    : 'All places';
+  const globeFilterSummary = {
+    isFiltered: isGlobeFiltered,
+    dateLabel: dateScopeLabel,
+    placeLabel: placeScopeLabel,
+    visibleLegs: visibleEvents.length,
+    totalLegs: events.length,
+    distance: displayedDistance,
+    activeLegDistance
+  };
+
+  useEffect(() => {
+    if (visibleEvents.length === 0) {
+      if (currentEventIndex !== -1) setCurrentEventIndex(-1);
+      if (isPlaying) setIsPlaying(false);
+      return;
+    }
+
+    if (currentVisibleIndex === -1) {
+      setCurrentEventIndex(visibleEvents[0].__sourceIndex);
+      setIsPlaying(false);
+    }
+  }, [currentEventIndex, currentVisibleIndex, isPlaying, visibleEvents]);
 
   // Format datetime string to readable date
   const formatDate = (dateString) => {
@@ -107,11 +344,65 @@ const App = () => {
   const handleMarkerClick = (city) => {
     setSelectedCity(city);
     // Find the first event for this city to center on the timeline
-    const firstEventIndex = events.findIndex(e => e.to_name === city.name);
-    if (firstEventIndex !== -1) setCurrentEventIndex(firstEventIndex);
+    const firstEventIndex = visibleEvents.find(e => e.to_name === city.name || e.from_name === city.name)?.__sourceIndex;
+    if (firstEventIndex !== undefined) setCurrentEventIndex(firstEventIndex);
     // Also set selectedTrip if we can find which trip this event belongs to?
     // For now just show event info
     setShowEventInfo(true);
+  };
+
+  const handleInspectorCityFocus = (city) => {
+    setSelectedCity(city);
+    const visibleIndex = city.eventIndexes?.[0] ?? visibleEvents.findIndex(e => e.to_name === city.name || e.from_name === city.name);
+    const sourceIndex = visibleEvents[visibleIndex]?.__sourceIndex;
+    if (sourceIndex !== undefined) setCurrentEventIndex(sourceIndex);
+    setForcedCamera({
+      lat: Number(city.lat),
+      lng: Number(city.lng),
+      altitude: 1.28,
+      duration: 900
+    });
+  };
+
+  const handleInspectorEventFocus = (eventIndex) => {
+    if (eventIndex < 0 || eventIndex >= visibleEvents.length) return;
+    setCurrentEventIndex(visibleEvents[eventIndex].__sourceIndex);
+    setSelectedCity(null);
+  };
+
+  const handleVisibleIndexChange = (visibleIndex) => {
+    const nextEvent = visibleEvents[visibleIndex];
+    if (!nextEvent) return;
+    setCurrentEventIndex(nextEvent.__sourceIndex);
+  };
+
+  const handleGlobeFilterChange = (patch) => {
+    setGlobeFilter(prev => {
+      const next = {
+        ...prev,
+        ...patch
+      };
+
+      if (patch.dateMode && patch.dateMode !== prev.dateMode) {
+        next.dateValue = patch.dateValue || '';
+        if (patch.dateMode !== 'range') {
+          next.dateFrom = '';
+          next.dateTo = '';
+        }
+      }
+
+      if (patch.dateMode === 'all') {
+        next.dateValue = '';
+        next.dateFrom = '';
+        next.dateTo = '';
+      }
+
+      return next;
+    });
+  };
+
+  const resetGlobeFilter = () => {
+    setGlobeFilter({ dateMode: 'all', dateValue: '', dateFrom: '', dateTo: '', places: [] });
   };
 
   const handleUploadClick = (eventId) => {
@@ -184,75 +475,173 @@ const App = () => {
     }
   };
 
+  const simulationRecorder = useSimulationRecorder({
+    globeRef: globeCaptureRef,
+    visibleEvents,
+    currentEventIndex,
+    isPlaying,
+    speed,
+    setCurrentEventIndex,
+    setIsPlaying,
+    setSpeed
+  });
+
   // Playback Loop
   useEffect(() => {
     let timer;
-    if (isPlaying && currentEventIndex < events.length) {
-      const current = events[currentEventIndex];
+    if (isPlaying && currentVisibleIndex >= 0 && currentVisibleIndex < visibleEvents.length) {
+      const current = visibleEvents[currentVisibleIndex];
       timer = setTimeout(() => {
-        if (currentEventIndex < events.length - 1) {
-          setCurrentEventIndex(prev => prev + 1);
+        if (currentVisibleIndex < visibleEvents.length - 1) {
+          setCurrentEventIndex(visibleEvents[currentVisibleIndex + 1].__sourceIndex);
         } else {
           setIsPlaying(false);
           // Show panorama from media list if available
-          const pano = current.media_list?.find(m => m.media_type === 'pano_image');
-          if (pano) setPanoUrl(pano.url);
+          if (!simulationRecorder.isRecording) {
+            const pano = current.media_list?.find(m => m.media_type === 'pano_image');
+            if (pano) setPanoUrl(pano.url);
+          }
         }
       }, 5000 / speed);
     }
     return () => clearTimeout(timer);
-  }, [isPlaying, currentEventIndex, speed, events]);
+  }, [isPlaying, currentVisibleIndex, speed, simulationRecorder.isRecording, visibleEvents]);
 
   const handleDashboardFocus = (lat, lng, altitude = 1000000, duration = 2000) => {
     setForcedCamera({ lat, lng, altitude, duration });
   };
 
+  const getRouteFocusCamera = (event) => {
+    if (!event) return null;
+
+    const fromLat = Number(event.from_lat);
+    const fromLng = Number(event.from_lng);
+    const toLat = Number(event.to_lat);
+    const toLng = Number(event.to_lng);
+
+    if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) return null;
+
+    let lngDelta = toLng - fromLng;
+    if (lngDelta > 180) lngDelta -= 360;
+    if (lngDelta < -180) lngDelta += 360;
+
+    const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
+    const altitude = distance < 300
+      ? 0.48
+      : distance < 1200
+        ? 0.62
+        : distance < 3000
+          ? 0.82
+          : 1.05;
+
+    return {
+      lat: (fromLat + toLat) / 2,
+      lng: ((fromLng + lngDelta / 2 + 540) % 360) - 180,
+      altitude,
+      duration: 900
+    };
+  };
+
+  const handleCameraModeToggle = () => {
+    const nextFreeCameraMode = !freeCameraMode;
+    setFreeCameraMode(nextFreeCameraMode);
+
+    if (nextFreeCameraMode) {
+      const routeCamera = getRouteFocusCamera(currentVisibleEvent);
+      if (routeCamera) setForcedCamera(routeCamera);
+    }
+  };
+
   return (
     <div className="app-container">
        <TravelGlobe
-          events={events}
-          currentEventIndex={currentEventIndex}
+          ref={globeCaptureRef}
+          events={visibleEvents}
+          currentEventIndex={currentVisibleIndex}
           isPlaying={isPlaying}
           speed={speed}
+          vehicleMode={vehicleMode}
           freeCameraMode={freeCameraMode}
           onGlobeClick={handleGlobeClick}
           onMarkerClick={handleMarkerClick}
           forcedCamera={forcedCamera}
        />
 
+       <GlobeJourneyInspector
+          events={visibleEvents}
+          currentEventIndex={currentVisibleIndex}
+          selectedCity={selectedCity}
+          isPlaying={isPlaying}
+          onCityFocus={handleInspectorCityFocus}
+          onEventFocus={handleInspectorEventFocus}
+          globeFilter={globeFilter}
+          filterSummary={globeFilterSummary}
+          dateBounds={dateBounds}
+          datePresetOptions={datePresetOptions}
+          placeOptions={placeScopeOptions}
+          onFilterChange={handleGlobeFilterChange}
+          onFilterReset={resetGlobeFilter}
+          onAddTravel={() => setShowForm(true)}
+        />
+
+       <SimulationExportPanel
+          eventCount={visibleEvents.length}
+          filterSummary={globeFilterSummary}
+          recorder={simulationRecorder}
+          onStart={simulationRecorder.startRecording}
+          onCancel={simulationRecorder.cancelRecording}
+        />
+
+       {dataError && (
+         <div className="data-error-banner glass-panel" role="alert">
+           <AlertTriangle size={18} />
+           <span>{dataError}</span>
+           <button type="button" onClick={fetchEvents} title="Retry data load">
+             <RefreshCcw size={16} />
+             Retry
+           </button>
+         </div>
+       )}
+
        {/* Top Left HUD */}
        <div className="hud-overlay top-left hud-font glass-panel">
          <div className="hud-item primary">
-           <Plane size={18} /> <span>STATUS: {isPlaying ? 'CRUISING' : 'READY'}</span>
+           <Plane size={18} /> <span>{isPlaying ? 'Playing journey' : 'Ready'}</span>
          </div>
          <div className="hud-item">
-           <MapPin size={18} /> <span>POS: {events[currentEventIndex]?.from_name || 'N/A'}</span>
+           <MapPin size={18} /> <span>Current: {currentVisibleEvent?.from_name || 'N/A'}</span>
          </div>
          <div className="hud-item">
-           <SkipForward size={18} /> <span>DEST: {events[currentEventIndex]?.to_name || 'N/A'}</span>
+           <SkipForward size={18} /> <span>Next: {currentVisibleEvent?.to_name || 'N/A'}</span>
          </div>
-       </div>
-
-       {/* Top Center: Total Odyssey Distance */}
-       <div className="hud-overlay top-center hud-font">
-          <div className="hud-global-distance-panel glass-panel">
-             <div className="total-label">TOTAL DISTANCE</div>
-             <div className="total-value">{formatDistance(totalOdysseyDistance)} KM</div>
-          </div>
        </div>
 
        {/* Top Right Menu */}
        <div className="hud-overlay top-right hud-font glass-panel">
-         <div className="hud-item">
-           <ArrowUp size={18} /> <span>ALT: {isPlaying ? (30000 + Math.floor(Math.random() * 5000)).toLocaleString() : '0'} FT</span>
+         <div className={`route-status-card ${activeTransport}`}>
+           <span>{activeTransportCopy.status}</span>
+           <strong>{activeTransportCopy.label}</strong>
+           <small>{formatDistance(activeLegDistance)} km leg</small>
          </div>
-         <div className="hud-item">
-           <Wind size={18} /> <span>SPD: {isPlaying ? (800 + Math.floor(Math.random() * 100)) * speed : 0} KM/H</span>
-         </div>
-         {isPlaying && (
-           <div className="hud-item" style={{ fontSize: '12px', border: '1px solid var(--primary)', padding: '2px 5px' }}>
-              HDG: {Math.floor(Math.random() * 360)}°
-           </div>
+         {isPlaying && activeTransport === 'plane' && (
+           <>
+             <div className="hud-item compact">
+               <ArrowUp size={16} /> <span>{activeTransportCopy.metricA}: 32,000 ft</span>
+             </div>
+             <div className="hud-item compact">
+               <Wind size={16} /> <span>{activeTransportCopy.metricB}: {Math.round(840 * speed)} km/h</span>
+             </div>
+           </>
+         )}
+         {isPlaying && activeTransport === 'ship' && (
+           <>
+             <div className="hud-item compact">
+               <ArrowUp size={16} /> <span>{activeTransportCopy.metricA}</span>
+             </div>
+             <div className="hud-item compact">
+               <Wind size={16} /> <span>{activeTransportCopy.metricB}: {Math.max(18, Math.round(32 * speed))} km/h</span>
+             </div>
+           </>
          )}
          <button className="add-toggle-btn" onClick={() => setShowForm(!showForm)}>
            <Plus /> {showForm ? 'CLOSE' : 'ADD TRAVEL'}
@@ -364,49 +753,71 @@ const App = () => {
       )}
 
       {/* Legacy Mini Event Info (Only if needed, hiding for now if Dashboard covers it) */}
-      {(showEventInfo && (selectedCity || (currentEventIndex >= 0 && events[currentEventIndex]))) && (
+      {(showEventInfo && (selectedCity || (currentVisibleIndex >= 0 && currentVisibleEvent))) && (
          <div className="media-preview glass-panel wide-panel" style={{display: 'none'}}>
             {/* Hiding legacy panel to force Dashboard usage */}
          </div>
       )}
 
       {/* Flight Route Display */}
-      {isPlaying && events.length > 0 && currentEventIndex >= 0 && (
+      {isPlaying && visibleEvents.length > 0 && currentVisibleEvent && (
         <div
-          key={currentEventIndex}
+          key={currentVisibleEvent.id ?? currentVisibleIndex}
           className="flight-route-display"
           role="status"
           aria-live="polite"
         >
           <div className="route">
-            {events[currentEventIndex].from_name}
+            {currentVisibleEvent.from_name}
             <span className="arrow">→</span>
-            {events[currentEventIndex].to_name}
+            {currentVisibleEvent.to_name}
           </div>
           <div className="date">
-            {formatDate(events[currentEventIndex].start_datetime)}
+            {formatDate(currentVisibleEvent.start_datetime)}
           </div>
         </div>
       )}
 
       {/* Controls Container */}
       <div className="controls-container glass-panel">
+        <div className="journey-beat">
+          <span>{currentVisibleIndex >= 0 ? `${currentVisibleIndex + 1} of ${visibleEvents.length}` : 'No route'}</span>
+          <strong>
+            {currentVisibleEvent
+              ? `${currentVisibleEvent.from_name || 'Unknown'} → ${currentVisibleEvent.to_name || 'Unknown'}`
+              : 'Add a journey to begin'}
+          </strong>
+          <small>{currentVisibleEvent ? `${formatDate(currentVisibleEvent.start_datetime)} · ${activeTransportCopy.label}` : 'Your routes will appear here'}</small>
+        </div>
+
         <div className="playback-controls">
-          <button onClick={() => setCurrentEventIndex(Math.max(0, currentEventIndex - 1))}><SkipBack /></button>
-          <button className="play-btn" onClick={() => setIsPlaying(!isPlaying)}>
+          <button onClick={() => handleVisibleIndexChange(Math.max(0, currentVisibleIndex - 1))} disabled={visibleEvents.length === 0}><SkipBack /></button>
+          <button className="play-btn" onClick={() => visibleEvents.length > 0 && setIsPlaying(!isPlaying)} disabled={visibleEvents.length === 0}>
             {isPlaying ? <Pause /> : <Play />}
           </button>
-          <button onClick={() => setCurrentEventIndex(Math.min(events.length - 1, currentEventIndex + 1))}><SkipForward /></button>
+          <button onClick={() => handleVisibleIndexChange(Math.min(visibleEvents.length - 1, currentVisibleIndex + 1))} disabled={visibleEvents.length === 0}><SkipForward /></button>
         </div>
         
         <div className="scrubber-container">
           <input 
             type="range" 
             min="0" 
-            max={Math.max(0, events.length - 1)} 
-            value={currentEventIndex >= 0 ? currentEventIndex : 0} 
-            onChange={(e) => setCurrentEventIndex(parseInt(e.target.value))}
+            max={Math.max(0, visibleEvents.length - 1)}
+            value={currentVisibleIndex >= 0 ? currentVisibleIndex : 0}
+            onChange={(e) => handleVisibleIndexChange(parseInt(e.target.value))}
+            disabled={visibleEvents.length === 0}
           />
+          {visibleEvents.length > 1 && (
+            <div className="scrubber-ticks" aria-hidden="true">
+              {visibleEvents.map((event, index) => (
+                <span
+                  key={event.id ?? index}
+                  className={index === currentVisibleIndex ? 'active' : ''}
+                  style={{ left: `${(index / (visibleEvents.length - 1)) * 100}%` }}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="speed-toggle">
@@ -423,12 +834,33 @@ const App = () => {
           </select>
         </div>
 
+        <div className="vehicle-toggle">
+          <label htmlFor="vehicle-select">VEHICLE</label>
+          <select
+            id="vehicle-select"
+            value={vehicleMode}
+            onChange={(e) => setVehicleMode(e.target.value)}
+          >
+            <option value="plane">Plane</option>
+            <option value="starship">Starship</option>
+            <option value="ship">Ship</option>
+            <option value="train">Train</option>
+            <option value="ground">Ground</option>
+            <option value="ufo">UFO</option>
+            <option value="hero">Superhero</option>
+            <option value="comet">Comet</option>
+          </select>
+        </div>
+
         <button
           className={`camera-toggle ${freeCameraMode ? 'unlocked' : 'locked'}`}
-          onClick={() => setFreeCameraMode(!freeCameraMode)}
-          title={freeCameraMode ? 'Camera Unlocked (Manual Control)' : 'Camera Locked (Auto-Follow)'}
+          onClick={handleCameraModeToggle}
+          type="button"
+          aria-pressed={freeCameraMode}
+          title={freeCameraMode ? 'Free view' : 'Auto follow'}
         >
-          {freeCameraMode ? '🔓 FREE' : '🔒 AUTO'}
+          {freeCameraMode ? <Unlock size={16} /> : <Lock size={16} />}
+          <span>{freeCameraMode ? 'FREE VIEW' : 'AUTO'}</span>
         </button>
       </div>
 
