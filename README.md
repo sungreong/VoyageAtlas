@@ -5,6 +5,36 @@
 VoyageAtlas는 사용자의 여행 기록을 3D 지구본 위에서 가장 아름답고 직관적으로 표현하기 위한 여행 아카이브 앱입니다.
 
 여행을 `Odyssey` 단위로 등록하고, 도시 간 이동 경로와 사진, 영상, 파노라마 미디어를 하나의 지구본 경험으로 다시 볼 수 있습니다.
+단순한 여행 목록이 아니라, 내가 지나온 도시와 이동 경로가 지구 위에서 연결되고 재생되는 개인 여행 지도입니다.
+
+VoyageAtlas가 가장 중요하게 보는 경험은 두 가지입니다. 여행을 최대한 빠르게 기록할 수 있어야 하고, 기록된 여정은 다시 열었을 때 한눈에 이동의 흐름이 느껴져야 합니다.
+그래서 메인 화면은 3D 글로브를 중심으로 구성되어 있으며, 등록·관리·재생·추천 여행지 탐색이 모두 지구본 경험 주변에서 이어집니다.
+
+## 화면 미리보기
+
+### 메인 글로브
+
+여행 경로, 현재 이동 구간, 대륙 이동, 재생 컨트롤을 한 화면에서 확인합니다.
+
+![VoyageAtlas 메인 글로브](docs/screenshots/readme-main-globe.png)
+
+### Odyssey 등록
+
+여행 이름, 출발 도시, 기간, 경유지를 입력하면 지구본 위에 표시할 이동 경로가 만들어집니다.
+
+![VoyageAtlas Odyssey 등록 화면](docs/screenshots/readme-create-odyssey.png)
+
+### Journey Log
+
+등록된 여행을 최신순으로 확인하고, 각 Odyssey의 구간 수와 총 이동 거리를 빠르게 비교합니다.
+
+![VoyageAtlas Journey Log](docs/screenshots/readme-journey-log.png)
+
+### 글로브 테마와 추천 여행지
+
+글로브 스타일, 경로 표현 방식, 도시 마커, 추천 여행지 레이어를 조절해 여정을 더 보기 좋게 탐색합니다.
+
+![VoyageAtlas 글로브 테마 설정](docs/screenshots/readme-globe-theme.png)
 
 ## 핵심 가치
 
