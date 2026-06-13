@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Calendar, MapPin, Camera, Plane, Clock, Plus, ArrowRight, Moon, Grid, List as ListIcon, Share2, DollarSign, Activity, Edit } from 'lucide-react';
+import { X, Calendar, MapPin, Plus, Grid, List as ListIcon, Activity } from 'lucide-react';
 import axios from 'axios';
 import './TripDashboard.css';
-import './Gallery.css';
 import '../App.css';
 import TripPreparation from './TripPreparation';
 import TripOverview from './TripOverview';
@@ -42,6 +41,8 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
   const [activeFilter, setActiveFilter] = useState('ALL'); // 'ALL' | CityName
   const [heroImage, setHeroImage] = useState(null);
   const [showUploadPicker, setShowUploadPicker] = useState(false);
+  const [dashboardNotice, setDashboardNotice] = useState('');
+  const showMediaActions = activeTab === 'feed' || activeTab === 'gallery';
   
   const stats = useTripStats(trip);
   const fileInputRef = useRef(null);
@@ -103,6 +104,12 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
     }
   }, [allMedia, heroImage]);
 
+  useEffect(() => {
+    if (!showMediaActions) {
+        setShowUploadPicker(false);
+    }
+  }, [showMediaActions]);
+
   const filteredFeed = activeFilter === 'ALL' 
     ? feedItems 
     : feedItems.filter(item => item.city === activeFilter || item.type === 'transit'); 
@@ -124,12 +131,13 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
       const formData = new FormData();
       Array.from(files).forEach(f => formData.append('files', f));
       await axios.post(`${API_BASE}/events/${uploadingEventId}/media`, formData);
+      setDashboardNotice('');
       onRefresh(); 
       setUploadingEventId(null);
       e.target.value = '';
     } catch (err) {
       console.error("Upload failed", err);
-      alert("Upload failed");
+      setDashboardNotice("Upload failed. Please try again.");
     }
   };
 
@@ -198,11 +206,12 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
               note: editValues.note,
               cost: parseFloat(editValues.cost || 0)
           });
+          setDashboardNotice('');
           setIsEditing(false);
           onRefresh(); // Trigger App-level re-fetch to update derived 'selectedTrip'
       } catch (err) {
           console.error("Failed to save trip details", err);
-          alert("Failed to save changes.");
+          setDashboardNotice("Could not save changes. Please try again.");
       }
   };
 
@@ -233,22 +242,22 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
           </div>
 
           <div className="dashboard-nav-bar glass-panel">
-              <div className="nav-tabs center-tabs">
-                  <button className={`nav-tab ${activeTab === 'prep' ? 'active' : ''}`} onClick={() => setActiveTab('prep')}>
+              <div className="nav-tabs center-tabs" role="tablist" aria-label="Trip dashboard sections">
+                  <button className={`nav-tab ${activeTab === 'prep' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'prep'} onClick={() => setActiveTab('prep')}>
                      <Plus size={16}/> PREPARATION
                   </button>
-                 <button className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+                 <button className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
                     <Activity size={16}/> OVERVIEW
                  </button>
-                 <button className={`nav-tab ${activeTab === 'feed' ? 'active' : ''}`} onClick={() => setActiveTab('feed')}>
+                 <button className={`nav-tab ${activeTab === 'feed' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'feed'} onClick={() => setActiveTab('feed')}>
                     <ListIcon size={16}/> JOURNEY
                  </button>
-                 <button className={`nav-tab ${activeTab === 'gallery' ? 'active' : ''}`} onClick={() => setActiveTab('gallery')}>
+                 <button className={`nav-tab ${activeTab === 'gallery' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'gallery'} onClick={() => setActiveTab('gallery')}>
                     <Grid size={16}/> GALLERY
                  </button>
               </div>
               {/* Filters ... */}
-              {activeTab !== 'overview' && (
+              {(activeTab === 'feed' || activeTab === 'gallery') && (
                   <div className="nav-filters">
                      <button 
                         className={`filter-chip ${activeFilter === 'ALL' ? 'active' : ''}`}
@@ -272,6 +281,13 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
                   </div>
               )}
           </div>
+
+          {dashboardNotice && (
+             <div className="dashboard-notice" role="status">
+                <span>{dashboardNotice}</span>
+                <button type="button" onClick={() => setDashboardNotice('')}>DISMISS</button>
+             </div>
+          )}
 
           <div className="dashboard-content">
               {activeTab === 'prep' && (
@@ -312,11 +328,13 @@ const TripDashboard = ({ trip, onClose, onRefresh, onFocusLocation }) => {
               )}
           </div>
           
-          <button className="fab-upload" onClick={() => setShowUploadPicker(!showUploadPicker)}>
-             {showUploadPicker ? <X size={24}/> : <Plus size={24}/>}
-          </button>
+          {showMediaActions && (
+             <button className="fab-upload" aria-label="Upload trip media" onClick={() => setShowUploadPicker(!showUploadPicker)}>
+                {showUploadPicker ? <X size={24}/> : <Plus size={24}/>}
+             </button>
+          )}
           
-          {showUploadPicker && (
+          {showMediaActions && showUploadPicker && (
              <div className="upload-picker-menu glass-panel">
                 <h4>Upload Destination</h4>
                 {/* QUICK UPLOAD OPTION */}

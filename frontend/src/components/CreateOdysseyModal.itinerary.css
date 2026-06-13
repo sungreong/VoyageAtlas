@@ -14,7 +14,7 @@
 
 .leg-row {
     display: flex;
-    align-items: center; /* Ensure vertical centering */
+    align-items: flex-start;
     gap: 10px;
     background: rgba(0, 243, 255, 0.02);
     padding: 10px;
@@ -38,6 +38,7 @@
     font-family: 'Orbitron', sans-serif;
     font-size: 0.7rem;
     flex-shrink: 0;
+    margin-top: 9px;
 }
 
 .leg-destination {

@@ -3,10 +3,14 @@
 .overview-tab-content {
     display: flex;
     flex-direction: column;
-    gap: 25px;
+    gap: 20px;
     height: 100%;
     padding-right: 5px; /* Scrollbar space */
     animation: fadeIn 0.4s ease-out;
+}
+
+.overview-context {
+    padding: 0 2px;
 }
 
 @keyframes fadeIn {
@@ -18,14 +22,14 @@
 .overview-stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
+    gap: 12px;
 }
 
 .stat-card-compact {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
     border: 1px solid rgba(0, 242, 255, 0.1);
-    border-radius: 12px;
-    padding: 15px;
+    border-radius: 9px;
+    padding: 14px;
     display: flex;
     align-items: center;
     gap: 15px;
@@ -37,7 +41,7 @@
 .stat-card-compact:hover {
     background: rgba(0, 242, 255, 0.05);
     border-color: rgba(0, 242, 255, 0.3);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
@@ -54,7 +58,7 @@
 .stat-icon-small {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: 8px;
     background: rgba(0, 242, 255, 0.1);
     color: var(--primary);
     display: flex;
@@ -100,7 +104,7 @@
 .overview-grid-main {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: 25px;
+    gap: 18px;
     flex: 1;
     min-height: 0; /* Fix grid overflow */
 }
@@ -125,7 +129,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 25px;
+    padding: 18px 22px;
     border-bottom: 1px solid rgba(0, 242, 255, 0.1);
     background: rgba(0, 242, 255, 0.02);
 }
@@ -149,6 +153,13 @@
     box-shadow: 0 0 8px var(--primary);
 }
 
+.card-subtitle {
+    display: block;
+    margin-top: 6px;
+    color: rgba(226, 241, 255, 0.44);
+    font-size: 0.82rem;
+}
+
 .edit-icon-btn {
     background: transparent;
     border: 1px solid rgba(0, 242, 255, 0.2);
@@ -170,7 +181,7 @@
 }
 
 .reflection-display {
-    padding: 25px;
+    padding: 22px;
     flex: 1;
     position: relative;
     overflow-y: auto;
@@ -188,8 +199,7 @@
 }
 
 .empty-reflection {
-    color: rgba(255, 255, 255, 0.3);
-    font-style: italic;
+    color: rgba(226, 241, 255, 0.42);
     text-align: center;
     display: flex;
     align-items: center;
@@ -217,7 +227,7 @@
 }
 
 .editor-controls {
-    padding: 15px 25px;
+    padding: 14px 22px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     gap: 10px;
@@ -257,7 +267,7 @@
 .overview-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 14px;
 }
 
 .sidebar-label {
@@ -265,10 +275,34 @@
     font-size: 0.8rem;
     color: var(--text-muted);
     letter-spacing: 2px;
-    margin-bottom: 0; /* handled by content spacing */
+    margin: 0;
+    border-bottom: 2px solid rgba(0, 242, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.route-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
     border-bottom: 2px solid rgba(0, 242, 255, 0.1);
     padding-bottom: 8px;
     margin-bottom: 15px;
+}
+
+.route-card-header .sidebar-label {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.route-card-header span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: rgba(226, 241, 255, 0.46);
+    font-family: var(--font-hud);
+    font-size: 0.68rem;
+    white-space: nowrap;
 }
 
 
@@ -316,14 +350,14 @@
 }
 
 .route-card-v2 {
-    padding: 25px;
+    padding: 22px;
     flex: 1; /* Fill remaining height */
     overflow-y: auto;
 }
 
 .prep-summary-snapshot {
-    padding: 25px;
-    margin-bottom: 30px;
+    padding: 22px;
+    margin-bottom: 0;
 }
 
 /* Inputs in cost */
@@ -367,4 +401,33 @@
 
 .progress-bar-wrap.thin {
     height: 4px;
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    box-shadow: 0 0 12px rgba(0, 242, 255, 0.35);
+    border-radius: inherit;
+    transition: width 0.5s ease-out;
+}
+
+@media (max-width: 860px) {
+    .overview-stats-row,
+    .overview-grid-main {
+        grid-template-columns: 1fr;
+    }
+
+    .overview-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 540px) {
+    .overview-stats-row {
+        grid-template-columns: 1fr;
+    }
 }

@@ -1,0 +1,102 @@
+.hologram-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: translateY(-22px);
+  animation: marker-float 3.6s ease-in-out infinite;
+  pointer-events: auto;
+}
+
+.hologram-label.active {
+  animation-duration: 2.4s;
+}
+
+.hologram-pin {
+  width: 8px;
+  height: 8px;
+  background: #9ecfc6;
+  border-radius: 50%;
+  box-shadow: 0 0 14px rgba(158, 207, 198, 0.78);
+  position: relative;
+}
+
+.hologram-pin::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border: 1px solid rgba(158, 207, 198, 0.42);
+  border-radius: 50%;
+}
+
+.hologram-pin::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 1px;
+  height: 22px;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, rgba(158, 207, 198, 0.85), transparent);
+}
+
+.hologram-label.active .hologram-pin {
+  background: #ffe2a8;
+  box-shadow: 0 0 18px rgba(255, 226, 168, 0.86);
+}
+
+.hologram-label.active .hologram-pin::before {
+  border-color: rgba(255, 226, 168, 0.58);
+}
+
+.hologram-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: min(180px, 42vw);
+  padding: 4px 9px;
+  border-radius: 6px;
+  color: #eaf6f2;
+  background: rgba(6, 18, 24, 0.68);
+  border: 1px solid rgba(158, 207, 198, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(5px);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.hologram-label.active .hologram-text {
+  color: #fff7df;
+  background: rgba(83, 57, 22, 0.72);
+  border-color: rgba(255, 226, 168, 0.72);
+  box-shadow: 0 0 20px rgba(255, 226, 168, 0.22), 0 14px 34px rgba(0, 0, 0, 0.3);
+}
+
+.signal-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #061313;
+  background: #dcecb8;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+@keyframes marker-float {
+  0%, 100% { transform: translateY(-22px); }
+  50% { transform: translateY(-28px); }
+}
+
+@media (max-width: 720px) {
+  .hologram-text {
+    max-width: 132px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 9px;
+  }
+}

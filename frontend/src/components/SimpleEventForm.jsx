@@ -57,28 +57,28 @@ const SimpleEventForm = ({ onAddSimpleTrip, onClose }) => {
   return (
     <form className="event-form glass-panel simple-itinerary" onSubmit={handleSubmit} style={{ width: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3>CREATE NEW ODYSSEY</h3>
+        <h3>새 여행 만들기</h3>
         <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
           <X size={20} />
         </button>
       </div>
-      <p style={{ fontSize: '10px', opacity: 0.7, marginBottom: '15px' }}>SIMPLIFIED FLIGHT PLANNING SYSTEM</p>
+      <p style={{ fontSize: '10px', opacity: 0.7, marginBottom: '15px' }}>도시를 입력하면 지구본 위에 여정이 그려집니다</p>
       
       <div className="form-section">
-        <label><MapPin size={12}/> DEPARTURE</label>
+        <label><MapPin size={12}/> 출발</label>
         <div className="trip-type-toggle">
-          <button type="button" className={!isRoundTrip ? 'active' : ''} onClick={() => setIsRoundTrip(false)}>ONE WAY</button>
-          <button type="button" className={isRoundTrip ? 'active' : ''} onClick={() => setIsRoundTrip(true)}>ROUND TRIP</button>
+          <button type="button" className={!isRoundTrip ? 'active' : ''} onClick={() => setIsRoundTrip(false)}>편도</button>
+          <button type="button" className={isRoundTrip ? 'active' : ''} onClick={() => setIsRoundTrip(true)}>왕복</button>
         </div>
-        <input type="text" placeholder="Start City (e.g. Seoul)" value={startCity} onChange={e => setStartCity(e.target.value)} required />
+        <input type="text" placeholder="출발 도시 (예: 서울, 제주)" value={startCity} onChange={e => setStartCity(e.target.value)} required />
         <div className="date-group">
           <div className="field">
-            <span>START</span>
+            <span>출발일</span>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required />
           </div>
           {isRoundTrip && (
             <div className="field">
-              <span>RETURN</span>
+              <span>돌아오는 날</span>
               <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} required />
             </div>
           )}
@@ -86,16 +86,16 @@ const SimpleEventForm = ({ onAddSimpleTrip, onClose }) => {
       </div>
 
       <div className="form-section">
-        <label><Calendar size={12}/> ITINERARY LEGS</label>
+        <label><Calendar size={12}/> 이동 경로</label>
         {legs.map((leg, index) => (
           <div key={index} className="leg-item glass-panel">
             <div className="leg-header">
-              <span>LEG #{index + 1}</span>
+              <span>{index + 1}번째 경유지</span>
               {legs.length > 1 && <button type="button" onClick={() => removeLeg(index)}><Trash2 size={14}/></button>}
             </div>
             <input 
               type="text" 
-              placeholder="Destination City" 
+              placeholder="도착 도시 (예: 제주)" 
               value={leg.city_name} 
               onChange={e => updateLeg(index, 'city_name', e.target.value)} 
               required 
@@ -108,25 +108,25 @@ const SimpleEventForm = ({ onAddSimpleTrip, onClose }) => {
             />
             <div className="leg-media">
                <label className="file-label">
-                 <Camera size={14} /> {leg.files.length > 0 ? `${leg.files.length} PHOTOS` : 'ADD PHOTOS'}
+                 <Camera size={14} /> {leg.files.length > 0 ? `사진 ${leg.files.length}개` : '사진 추가'}
                  <input type="file" multiple hidden onChange={e => handleFileChange(index, e.target.files)} />
                </label>
             </div>
           </div>
         ))}
-        <button type="button" className="add-leg-btn" onClick={addLeg}><Plus size={14}/> ADD STOP</button>
+        <button type="button" className="add-leg-btn" onClick={addLeg}><Plus size={14}/> 경유지 추가</button>
       </div>
 
       <input 
         type="text" 
         className="trip-title-input"
-        placeholder="Trip Title (e.g. 2024 Europe Tour)" 
+        placeholder="여행 이름 (예: 제주 가족 여행)" 
         value={title} 
         onChange={e => setTitle(e.target.value)} 
         required 
       />
 
-      <button type="submit" className="pano-btn">INITIALIZE FLIGHT PATH</button>
+      <button type="submit" className="pano-btn">여행 경로 만들기</button>
     </form>
   );
 };

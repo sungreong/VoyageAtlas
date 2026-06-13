@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
   Download, Upload, X, FileJson, CheckCircle2, AlertCircle,
-  FileSpreadsheet, Settings, MapPin, Calendar, Plane, CheckSquare, Square, Globe
+  FileSpreadsheet, Settings, MapPin, Calendar, Plane, CheckSquare, Square, Globe,
+  Clipboard, Check
 } from 'lucide-react';
 import { API_BASE } from '../api/client';
 import './DataManagement.css';
@@ -14,6 +15,39 @@ const fmtDisplay  = (iso) => {
   const d = new Date(iso);
   return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 };
+
+const IMPORT_SAMPLE = {
+  version: '2.0',
+  trips: [
+    {
+      trip_title: 'Seoul to Jeju Odyssey',
+      routes: [
+        {
+          title: 'Flight to Jeju',
+          from: 'Seoul',
+          to: 'Jeju',
+          from_lat: 37.5665,
+          from_lng: 126.9780,
+          to_lat: 33.4996,
+          to_lng: 126.5312,
+          date: '2026-06-06T09:00:00',
+          transport: 'plane',
+          note: 'Morning departure'
+        }
+      ]
+    }
+  ]
+};
+
+const IMPORT_SAMPLE_TEXT = JSON.stringify(IMPORT_SAMPLE, null, 2);
+
+const IMPORT_RULES = [
+  'trips 배열이 반드시 필요합니다.',
+  '여행 이름은 trip_title 또는 title 로 입력합니다.',
+  '이동 기록은 routes 또는 events 배열에 넣습니다.',
+  '각 이동 기록에는 출발/도착 도시, 좌표, 날짜가 필요합니다.',
+  '날짜는 2026-06-06T09:00:00 같은 ISO 형식을 사용합니다.'
+];
 
 const ExportImportModal = ({ onClose, onRefresh }) => {
   // ── All trips from backend ──────────────────────────────────
@@ -37,6 +71,7 @@ const ExportImportModal = ({ onClose, onRefresh }) => {
   // ── Import ──────────────────────────────────────────────────
   const [isImporting, setIsImporting] = useState(false);
   const [dragActive,  setDragActive]  = useState(false);
+  const [copyState, setCopyState] = useState('idle');
 
   const [message, setMessage] = useState(null);
 
@@ -168,8 +203,12 @@ const ExportImportModal = ({ onClose, onRefresh }) => {
             type: 'success'
           });
           if (onRefresh) onRefresh();
-        } catch {
-          setMessage({ text: 'JSON 형식이 올바르지 않거나 서버 에러입니다.', type: 'error' });
+        } catch (err) {
+          const detail = err?.response?.data?.detail;
+          setMessage({
+            text: detail || 'JSON 구조를 확인해주세요. 샘플 형식과 필수 필드를 맞추면 가져올 수 있습니다.',
+            type: 'error'
+          });
         } finally {
           setIsImporting(false);
         }
@@ -189,6 +228,68 @@ const ExportImportModal = ({ onClose, onRefresh }) => {
     e.preventDefault(); e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files?.[0]) handleImport(e.dataTransfer.files[0]);
+  };
+
+  const handleCopySample = async () => {
+    let copied = false;
+    try {
+      if (window.navigator?.clipboard?.writeText) {
+        await window.navigator.clipboard.writeText(IMPORT_SAMPLE_TEXT);
+        copied = true;
+      }
+    } catch {
+      copied = false;
+    }
+
+    if (!copied) {
+      try {
+        const copyListener = (event) => {
+          event.clipboardData.setData('text/plain', IMPORT_SAMPLE_TEXT);
+          event.preventDefault();
+        };
+        document.addEventListener('copy', copyListener);
+        copied = document.execCommand('copy');
+        document.removeEventListener('copy', copyListener);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (!copied) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = IMPORT_SAMPLE_TEXT;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      setCopyState('copied');
+      window.setTimeout(() => setCopyState('idle'), 1800);
+    } else {
+      setMessage({ text: '샘플 복사에 실패했습니다. 코드 블록을 직접 선택해서 복사해주세요.', type: 'error' });
+    }
+  };
+
+  const handleDownloadSample = () => {
+    const blob = new Blob([IMPORT_SAMPLE_TEXT], { type: 'application/json' });
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = Object.assign(document.createElement('a'), {
+      href: blobUrl,
+      download: 'voyage_atlas_import_sample.json'
+    });
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 0);
   };
 
   // ── Render ──────────────────────────────────────────────────
@@ -397,7 +498,42 @@ const ExportImportModal = ({ onClose, onRefresh }) => {
             <div className="section-label">
               <Upload size={18} /> <span>IMPORT DATA</span>
             </div>
-            <p className="section-desc">JSON 파일로 여행 데이터를 복원하거나 병합합니다.</p>
+            <p className="section-desc">샘플 구조에 맞춘 JSON 파일을 올리면 여행과 이동 기록을 병합합니다.</p>
+
+            <div className="epm-import-guide">
+              <div className="epm-guide-header">
+                <div>
+                  <span className="epm-guide-kicker">JSON TEMPLATE</span>
+                  <h3>복사해서 바로 시작하세요</h3>
+                </div>
+                <button
+                  type="button"
+                  className={`epm-copy-btn ${copyState === 'copied' ? 'copied' : ''}`}
+                  onClick={handleCopySample}
+                >
+                  {copyState === 'copied' ? <Check size={14} /> : <Clipboard size={14} />}
+                  <span>{copyState === 'copied' ? 'COPIED' : 'COPY'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="epm-copy-btn"
+                  onClick={handleDownloadSample}
+                >
+                  <Download size={14} />
+                  <span>SAMPLE</span>
+                </button>
+              </div>
+
+              <ul className="epm-rule-list">
+                {IMPORT_RULES.map(rule => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ul>
+
+              <pre className="epm-sample-code" aria-label="Import JSON sample">
+                <code>{IMPORT_SAMPLE_TEXT}</code>
+              </pre>
+            </div>
 
             <div
               className={`import-dropzone ${dragActive ? 'active' : ''} ${isImporting ? 'loading' : ''}`}

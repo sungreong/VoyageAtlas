@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
 import * as THREE from 'three';
+import './TravelGlobe.css';
+import { TRAVELER_ICONS } from '../assets/travelerIcons';
 import {
   calculateFlightPhase,
   calculateAltitude,
@@ -8,13 +10,183 @@ import {
   calculatePitch,
   calculateSpeed,
   getGreatCircleDistance,
-  calculateCameraAltitude,
-  FlightPhase
+  calculateCameraAltitude
 } from '../utils/flightPhysics';
 
-const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, speed, freeCameraMode, forcedCamera }) => {
+const OVERVIEW_LABEL_LIMIT = 12;
+const SIMULATION_FRAME_INTERVAL_MS = 1000 / 30;
+const SUN_UPDATE_INTERVAL_MS = 250;
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+const normalizeTransport = (event, fallbackMode = 'plane') => {
+  const raw = String(event?.transport || fallbackMode || 'plane').toLowerCase();
+
+  if (['plane', 'flight', 'air', 'airplane'].includes(raw)) return 'plane';
+  if (['starship', 'rocket', 'spacecraft', 'spaceship'].includes(raw)) return 'starship';
+  if (['ship', 'boat', 'ferry', 'cruise'].includes(raw)) return 'ship';
+  if (['train', 'rail'].includes(raw)) return 'train';
+  if (['car', 'bus', 'drive', 'road'].includes(raw)) return 'ground';
+  return raw === 'ufo' || raw === 'hero' || raw === 'comet' ? raw : 'plane';
+};
+
+const getTransportVisual = (event, active, focusMode, fallbackMode = 'plane') => {
+  const transport = normalizeTransport(event, fallbackMode);
+  const ghostOpacity = focusMode ? 0.16 : 0.24;
+  const base = {
+    transport,
+    arcColor: active
+      ? ['#9ecfc6', '#ffe2a8']
+      : [`rgba(158, 207, 198, ${ghostOpacity})`, `rgba(220, 236, 184, ${ghostOpacity * 0.58})`],
+    dashLength: active ? 0.42 : 0.22,
+    dashGap: active ? 0.16 : 0.34,
+    dashTime: active ? 1050 : 5400,
+    altitude: active ? 0.25 : 0.08,
+    stroke: active ? 1.2 : 0.35,
+    ringColor: active ? '#ffe2a8' : 'rgba(158, 207, 198, 0.42)',
+    ringMaxRadius: active ? 3.2 : 1.2,
+    ringSpeed: active ? 4 : 1.8,
+    ringPeriod: active ? 900 : 2400
+  };
+
+  if (transport === 'ship') {
+    return {
+      ...base,
+      arcColor: active
+        ? ['#6be7ff', '#b9ddd3']
+        : [`rgba(107, 231, 255, ${ghostOpacity})`, `rgba(185, 221, 211, ${ghostOpacity * 0.72})`],
+      dashLength: active ? 0.24 : 0.16,
+      dashGap: active ? 0.32 : 0.42,
+      dashTime: active ? 2600 : 7200,
+      altitude: active ? 0.09 : 0.035,
+      stroke: active ? 1.05 : 0.32,
+      ringColor: active ? '#b9ddd3' : 'rgba(107, 231, 255, 0.36)',
+      ringMaxRadius: active ? 3.8 : 1.6,
+      ringSpeed: active ? 2.1 : 1.1,
+      ringPeriod: active ? 1500 : 3000
+    };
+  }
+
+  if (transport === 'starship') {
+    return {
+      ...base,
+      arcColor: active
+        ? ['#f7fbff', '#6be7ff']
+        : [`rgba(247, 251, 255, ${ghostOpacity})`, `rgba(107, 231, 255, ${ghostOpacity * 0.62})`],
+      dashLength: active ? 0.34 : 0.18,
+      dashGap: active ? 0.18 : 0.36,
+      dashTime: active ? 820 : 5200,
+      altitude: active ? 0.32 : 0.11,
+      stroke: active ? 1.18 : 0.34,
+      ringColor: active ? '#f7fbff' : 'rgba(107, 231, 255, 0.36)',
+      ringMaxRadius: active ? 3.5 : 1.4,
+      ringSpeed: active ? 4.4 : 1.8,
+      ringPeriod: active ? 820 : 2400
+    };
+  }
+
+  if (transport === 'train' || transport === 'ground') {
+    return {
+      ...base,
+      arcColor: active
+        ? ['#dcecb8', '#ffe2a8']
+        : [`rgba(220, 236, 184, ${ghostOpacity})`, `rgba(255, 226, 168, ${ghostOpacity * 0.52})`],
+      dashLength: active ? 0.2 : 0.12,
+      dashGap: active ? 0.24 : 0.38,
+      dashTime: active ? 1900 : 6200,
+      altitude: active ? 0.055 : 0.026,
+      stroke: active ? 0.95 : 0.3,
+      ringColor: active ? '#dcecb8' : 'rgba(220, 236, 184, 0.34)',
+      ringMaxRadius: active ? 2.4 : 1,
+      ringSpeed: active ? 2.5 : 1.3,
+      ringPeriod: active ? 1300 : 2800
+    };
+  }
+
+  return base;
+};
+
+const getHeading = (phi1, lam1, phi2, lam2) => {
+  const y = Math.sin(lam2 - lam1) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) -
+            Math.sin(phi1) * Math.cos(phi2) * Math.cos(lam2 - lam1);
+  const theta = Math.atan2(y, x);
+  return (theta * RAD_TO_DEG + 360) % 360;
+};
+
+const createGreatCircleInterpolator = (lat1, lng1, lat2, lng2) => {
+  const phi1 = lat1 * DEG_TO_RAD;
+  const lambda1 = lng1 * DEG_TO_RAD;
+  const phi2 = lat2 * DEG_TO_RAD;
+  const lambda2 = lng2 * DEG_TO_RAD;
+  const sinPhiDelta = Math.sin((phi2 - phi1) / 2);
+  const sinLambdaDelta = Math.sin((lambda2 - lambda1) / 2);
+  const d = 2 * Math.asin(Math.sqrt(
+    sinPhiDelta * sinPhiDelta +
+    Math.cos(phi1) * Math.cos(phi2) * sinLambdaDelta * sinLambdaDelta
+  ));
+  const sinD = Math.sin(d);
+
+  if (d === 0 || sinD === 0) {
+    return () => ({ lat: lat1, lng: lng1 });
+  }
+
+  const cosPhi1 = Math.cos(phi1);
+  const cosPhi2 = Math.cos(phi2);
+  const sinPhi1 = Math.sin(phi1);
+  const sinPhi2 = Math.sin(phi2);
+  const cosLambda1 = Math.cos(lambda1);
+  const sinLambda1 = Math.sin(lambda1);
+  const cosLambda2 = Math.cos(lambda2);
+  const sinLambda2 = Math.sin(lambda2);
+
+  return (t) => {
+    const a = Math.sin((1 - t) * d) / sinD;
+    const b = Math.sin(t * d) / sinD;
+
+    const x = a * cosPhi1 * cosLambda1 + b * cosPhi2 * cosLambda2;
+    const y = a * cosPhi1 * sinLambda1 + b * cosPhi2 * sinLambda2;
+    const z = a * sinPhi1 + b * sinPhi2;
+
+    return {
+      lat: Math.atan2(z, Math.sqrt(x * x + y * y)) * RAD_TO_DEG,
+      lng: Math.atan2(y, x) * RAD_TO_DEG
+    };
+  };
+};
+
+const calculateSunPosition = (date) => {
+  const now = date || new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now - start;
+  const oneDay = 1000 * 60 * 60 * 24;
+  const day = Math.floor(diff / oneDay);
+  const lat = 23.44 * Math.sin(2 * Math.PI * (day - 81) / 365);
+  const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
+  const lng = (12 - utcHours) * 15;
+
+  return { lat, lng };
+};
+
+const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, speed, vehicleMode, freeCameraMode, forcedCamera }, ref) => {
   const globeEl = useRef();
-  // ...
+  const cameraTimerRefs = useRef([]);
+  const animationFrameRef = useRef(null);
+  const travelerTextureCacheRef = useRef(new Map());
+  const lastSimulationFrameRef = useRef(0);
+  const lastSunUpdateRef = useRef(0);
+
+  useImperativeHandle(ref, () => ({
+    getRecordingCanvas: () => {
+      const renderer = globeEl.current?.renderer?.();
+      return renderer?.domElement || document.querySelector('.app-container canvas');
+    }
+  }), []);
+
+  const clearCameraTimers = () => {
+    cameraTimerRefs.current.forEach(timerId => clearTimeout(timerId));
+    cameraTimerRefs.current = [];
+  };
 
   // Handle Forced Camera (Map Sync)
   useEffect(() => {
@@ -28,19 +200,21 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
   }, [forcedCamera]);
 
   const [airplanePos, setAirplanePos] = useState(null);
-  const [sunPos, setSunPos] = useState(null); // { lat, lng }
-  const [contrailParticles, setContrailParticles] = useState([]); // Contrail trail particles
+
+  const currentEvent = events[currentEventIndex];
+  const isFlightFocusMode = isPlaying && Boolean(currentEvent);
 
   // Cluster events by destination
   const cityClusters = useMemo(() => {
     const clusters = {};
     events.forEach(e => {
+      if (!Number.isFinite(Number(e.to_lat)) || !Number.isFinite(Number(e.to_lng))) return;
       const key = e.to_name;
       if (!clusters[key]) {
         clusters[key] = { 
           name: e.to_name, 
-          lat: e.to_lat, 
-          lng: e.to_lng, 
+          lat: Number(e.to_lat),
+          lng: Number(e.to_lng),
           count: 0,
           events: []
         };
@@ -52,81 +226,457 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
   }, [events]);
 
   const arcsData = useMemo(() => {
-    return events.map((e, i) => ({
-      startLat: e.from_lat,
-      startLng: e.from_lng,
-      endLat: e.to_lat,
-      endLng: e.to_lng,
-      color: i === currentEventIndex ? ['#00f2ff', '#ffffff'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)'],
-      active: i === currentEventIndex,
-      title: e.title
-    }));
-  }, [events, currentEventIndex]);
+    return events.map((e, i) => {
+      const active = i === currentEventIndex;
+      const visual = getTransportVisual(e, active, isFlightFocusMode, vehicleMode);
 
-  // Calculate heading between two points
-  const getHeading = (phi1, lam1, phi2, lam2) => {
-    const y = Math.sin(lam2 - lam1) * Math.cos(phi2);
-    const x = Math.cos(phi1) * Math.sin(phi2) -
-              Math.sin(phi1) * Math.cos(phi2) * Math.cos(lam2 - lam1);
-    const θ = Math.atan2(y, x);
-    return (θ * 180 / Math.PI + 360) % 360;
-  };
+      return {
+        startLat: Number(e.from_lat),
+        startLng: Number(e.from_lng),
+        endLat: Number(e.to_lat),
+        endLng: Number(e.to_lng),
+        color: visual.arcColor,
+        active,
+        focusMode: isFlightFocusMode,
+        transport: visual.transport,
+        visual,
+        title: e.title
+      };
+    }).filter(Boolean).filter(e =>
+      Number.isFinite(e.startLat) &&
+      Number.isFinite(e.startLng) &&
+      Number.isFinite(e.endLat) &&
+      Number.isFinite(e.endLng)
+    );
+  }, [events, currentEventIndex, isFlightFocusMode, vehicleMode]);
 
-  // Great Circle Interpolation Helper
-  const getIntermediatePoint = (lat1, lng1, lat2, lng2, t) => {
-    const toRad = (d) => d * Math.PI / 180;
-    const toDeg = (r) => r * 180 / Math.PI;
+  const focusRouteCities = useMemo(() => {
+    if (!currentEvent) return [];
 
-    const φ1 = toRad(lat1);
-    const λ1 = toRad(lng1);
-    const φ2 = toRad(lat2);
-    const λ2 = toRad(lng2);
+    return [
+      {
+        name: currentEvent.from_name,
+        lat: Number(currentEvent.from_lat),
+        lng: Number(currentEvent.from_lng),
+        routeRole: 'origin'
+      },
+      {
+        name: currentEvent.to_name,
+        lat: Number(currentEvent.to_lat),
+        lng: Number(currentEvent.to_lng),
+        routeRole: 'destination'
+      }
+    ].filter(c =>
+      c.name &&
+      Number.isFinite(c.lat) &&
+      Number.isFinite(c.lng)
+    );
+  }, [currentEvent]);
 
-    // Angular distance
-    const d = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin((φ2 - φ1) / 2), 2) + Math.cos(φ1) * Math.cos(φ2) * Math.pow(Math.sin((λ2 - λ1) / 2), 2)));
+  const labelCityMarkers = useMemo(() => {
+    if (!isFlightFocusMode) {
+      const priorityNames = new Set([
+        currentEvent?.from_name,
+        currentEvent?.to_name
+      ].filter(Boolean));
 
-    if (d === 0) return { lat: lat1, lng: lng1 };
+      const priorityCities = cityClusters.filter(city => priorityNames.has(city.name));
+      const remainingCities = cityClusters
+        .filter(city => !priorityNames.has(city.name))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-    const A = Math.sin((1 - t) * d) / Math.sin(d);
-    const B = Math.sin(t * d) / Math.sin(d);
+      return [...priorityCities, ...remainingCities].slice(0, OVERVIEW_LABEL_LIMIT);
+    }
 
-    const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
-    const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
-    const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+    return focusRouteCities.map(routeCity => {
+      const cluster = cityClusters.find(c => c.name === routeCity.name);
+      return {
+        ...routeCity,
+        count: cluster?.count ?? 1,
+        events: cluster?.events ?? []
+      };
+    });
+  }, [cityClusters, focusRouteCities, isFlightFocusMode]);
 
-    const φi = Math.atan2(z, Math.sqrt(x * x + y * y));
-    const λi = Math.atan2(y, x);
+  const labelsData = useMemo(() => {
+    return labelCityMarkers
+      .filter(c => Number.isFinite(Number(c.lat)) && Number.isFinite(Number(c.lng)))
+      .map(c => {
+        const active = currentEvent?.to_name === c.name;
+        return {
+          ...c,
+          lat: Number(c.lat),
+          lng: Number(c.lng),
+          active,
+          focusMode: isFlightFocusMode,
+          label: isFlightFocusMode ? c.name : `${c.name}${c.count > 1 ? ` x${c.count}` : ''}`
+        };
+      });
+  }, [labelCityMarkers, currentEvent, isFlightFocusMode]);
 
-    return {
-      lat: toDeg(φi),
-      lng: toDeg(λi)
-    };
-  };
+  const toGlobeVector = useCallback((lat, lng, altitude = 0, globeRadius = 100) => {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (90 - lng) * (Math.PI / 180);
+    const radius = globeRadius * (1 + altitude);
+    const phiSin = Math.sin(phi);
 
-  // Solar Position Calculator
-  const calculateSunPosition = (date) => {
-    const now = date || new Date();
-    // 1. Calculate Solar Declination (Latitude) - approx based on Day of Year
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const day = Math.floor(diff / oneDay);
-    // 23.44 degree axial tilt
-    // 81 is roughly the spring equinox offset (March 22)
-    const lat = 23.44 * Math.sin(2 * Math.PI * (day - 81) / 365);
+    return new THREE.Vector3(
+      radius * phiSin * Math.cos(theta),
+      radius * Math.cos(phi),
+      radius * phiSin * Math.sin(theta)
+    );
+  }, []);
 
-    // 2. Calculate Solar Hour Angle (Longitude)
-    // Noon UTC = Sun is at 0 deg longitude ?? No.
-    // Noon at Greenwich (UTC 12) -> Sun is at 0 deg.
-    // So 12 UTC = 0 Long.
-    // 18 UTC = -90 Long (90W). 
-    // 06 UTC = +90 Long (90E).
-    // Formula: (12 - UTC_Hours) * 15 degrees.
-    const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
-    const lng = (12 - utcHours) * 15;
+  const createLabelSprite = useCallback((label, globeRadius) => {
+    const text = label.label || label.name || '';
+    const active = Boolean(label.active);
+    const focusMode = Boolean(label.focusMode);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const fontSize = active ? 23 : focusMode ? 17 : 18;
+    const paddingX = active ? 18 : focusMode ? 12 : 13;
+    const paddingY = active ? 10 : focusMode ? 7 : 8;
+    const dotSize = active ? 14 : focusMode ? 8 : 10;
 
-    return { lat, lng };
-  };
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    measureCtx.font = `700 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+    const textWidth = Math.ceil(measureCtx.measureText(text).width);
+    const width = Math.max(72, textWidth + paddingX * 2 + dotSize + 10);
+    const height = fontSize + paddingY * 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(width * pixelRatio);
+    canvas.height = Math.ceil(height * pixelRatio);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(pixelRatio, pixelRatio);
+    ctx.font = `700 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = active ? 'rgba(83, 57, 22, 0.84)' : 'rgba(6, 18, 24, 0.58)';
+    ctx.strokeStyle = active ? 'rgba(255, 226, 168, 0.9)' : 'rgba(158, 207, 198, 0.42)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(1, 1, width - 2, height - 2, 9);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = active ? '#ffe2a8' : 'rgba(158, 207, 198, 0.82)';
+    ctx.beginPath();
+    ctx.arc(paddingX, height / 2, dotSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = active ? '#fff7df' : 'rgba(234, 246, 242, 0.84)';
+    ctx.fillText(text, paddingX + dotSize + 9, height / 2 + 1);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false
+    });
+
+    const sprite = new THREE.Sprite(material);
+    const spriteHeight = active ? 3.9 : focusMode ? 2.35 : 2.55;
+    sprite.scale.set((width / height) * spriteHeight, spriteHeight, 1);
+    sprite.position.copy(toGlobeVector(label.lat, label.lng, active ? 0.035 : focusMode ? 0.012 : 0.018, globeRadius));
+    sprite.renderOrder = active ? 5 : 4;
+    sprite.userData = label;
+
+    return sprite;
+  }, [toGlobeVector]);
+
+  const getTravelerTexture = useCallback((mode) => {
+    const icon = TRAVELER_ICONS[mode] || TRAVELER_ICONS.plane;
+    const cached = travelerTextureCacheRef.current.get(mode);
+    if (cached) return cached;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(icon.rotation);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+    const glow = ctx.createRadialGradient(128, 128, 16, 128, 128, 106);
+    glow.addColorStop(0, icon.glow);
+    glow.addColorStop(0.46, 'rgba(255, 255, 255, 0.12)');
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const path = new Path2D(icon.path);
+    const iconScale = 0.56;
+    const offset = canvas.width * (1 - iconScale) / 2;
+
+    ctx.save();
+    ctx.translate(offset, offset);
+    ctx.scale(iconScale * (canvas.width / icon.viewBox), iconScale * (canvas.height / icon.viewBox));
+    ctx.shadowColor = icon.accent;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = icon.primary;
+    ctx.fill(path);
+    ctx.shadowBlur = 0;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = icon.accent;
+    ctx.lineWidth = Math.max(12, icon.viewBox * 0.018);
+    ctx.stroke(path);
+    ctx.restore();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    travelerTextureCacheRef.current.set(mode, texture);
+    return texture;
+  }, []);
+
+  const orientVehicleObject = useCallback((obj, vehicle, globeRadius) => {
+    const lat = Number(vehicle.lat);
+    const lng = Number(vehicle.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const altitude = (vehicle.altitude || 0.2) + 0.055;
+    const position = toGlobeVector(lat, lng, altitude, globeRadius);
+    const targetLat = Number.isFinite(Number(vehicle.targetLat)) ? Number(vehicle.targetLat) : lat;
+    const targetLng = Number.isFinite(Number(vehicle.targetLng)) ? Number(vehicle.targetLng) : lng;
+    const target = toGlobeVector(targetLat, targetLng, altitude, globeRadius);
+    const normal = position.clone().normalize();
+    const north = toGlobeVector(lat + 0.05, lng, altitude, globeRadius)
+      .sub(position)
+      .projectOnPlane(normal)
+      .normalize();
+    const east = toGlobeVector(lat, lng + 0.05, altitude, globeRadius)
+      .sub(position)
+      .projectOnPlane(normal)
+      .normalize();
+    const headingRad = Number.isFinite(Number(vehicle.heading))
+      ? Number(vehicle.heading) * Math.PI / 180
+      : null;
+    const forward = headingRad === null
+      ? target.sub(position).projectOnPlane(normal)
+      : north.multiplyScalar(Math.cos(headingRad)).add(east.multiplyScalar(Math.sin(headingRad)));
+
+    if (forward.lengthSq() < 0.0001) {
+      forward.copy(normal.clone().cross(new THREE.Vector3(0, 1, 0)));
+      if (forward.lengthSq() < 0.0001) forward.copy(new THREE.Vector3(1, 0, 0));
+    }
+
+    forward.normalize();
+    const mode = vehicle.vehicleMode || 'plane';
+    const headingOffset = TRAVELER_ICONS[mode]?.headingOffset || 0;
+    if (headingOffset) {
+      forward.applyAxisAngle(normal, headingOffset).normalize();
+    }
+    const lateral = new THREE.Vector3().crossVectors(normal, forward).normalize();
+    const matrix = new THREE.Matrix4().makeBasis(forward, lateral, normal);
+    matrix.setPosition(position);
+
+    obj.matrixAutoUpdate = false;
+    obj.matrix.copy(matrix);
+    obj.matrixWorldNeedsUpdate = true;
+  }, [toGlobeVector]);
+
+  const positionVehicleBillboard = useCallback((obj, vehicle, globeRadius) => {
+    const lat = Number(vehicle.lat);
+    const lng = Number(vehicle.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    obj.matrixAutoUpdate = true;
+    obj.position.copy(toGlobeVector(lat, lng, (vehicle.altitude || 0.2) + 0.075, globeRadius));
+  }, [toGlobeVector]);
+
+  const clearVehicleChildren = useCallback((group) => {
+    group.children.forEach(child => {
+      child.geometry?.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach(material => material.dispose());
+      } else {
+        child.material?.dispose();
+      }
+    });
+    group.clear();
+  }, []);
+
+  const applyVehicleRenderMode = useCallback((group, mode) => {
+    const icon = TRAVELER_ICONS[mode] || TRAVELER_ICONS.plane;
+    clearVehicleChildren(group);
+
+    if (icon.renderMode === 'billboard') {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: getTravelerTexture(mode),
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+        toneMapped: false
+      }));
+      sprite.scale.set(icon.scale, icon.scale, 1);
+      sprite.renderOrder = 14;
+      group.add(sprite);
+      group.userData = { renderMode: icon.renderMode, vehicleMode: mode, iconSprite: sprite };
+      return;
+    }
+
+    if (icon.renderMode === 'comet') {
+      [
+        { x: 2.1, radius: 0.7, color: 0xfff7df, opacity: 1 },
+        { x: 1.05, radius: 0.52, color: 0xffd18a, opacity: 0.74 },
+        { x: 0.1, radius: 0.38, color: 0xffa85f, opacity: 0.46 },
+        { x: -0.75, radius: 0.25, color: 0x9ecfc6, opacity: 0.3 },
+        { x: -1.45, radius: 0.16, color: 0x6be7ff, opacity: 0.2 }
+      ].forEach(({ x, radius, color, opacity }, index) => {
+        const particle = new THREE.Mesh(
+          new THREE.SphereGeometry(radius, 32, 16),
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            toneMapped: false
+          })
+        );
+        particle.position.x = x;
+        particle.renderOrder = 15 - index;
+        group.add(particle);
+      });
+
+      const tail = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.42, 3.2, 24, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: 0xffc16d,
+          transparent: true,
+          opacity: 0.24,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          toneMapped: false
+        })
+      );
+      tail.rotation.z = Math.PI / 2;
+      tail.position.x = 0.2;
+      tail.renderOrder = 10;
+      group.add(tail);
+      group.userData = { renderMode: icon.renderMode, vehicleMode: mode };
+      return;
+    }
+
+    const texture = getTravelerTexture(mode);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
+
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(icon.scale, icon.scale), material);
+    mesh.renderOrder = 12;
+    group.add(mesh);
+    group.userData = { renderMode: icon.renderMode, vehicleMode: mode, iconMesh: mesh };
+  }, [clearVehicleChildren, getTravelerTexture]);
+
+  const updateVehicleObject = useCallback((obj, vehicle, globeRadius) => {
+    const mode = vehicle.vehicleMode || 'plane';
+    const icon = TRAVELER_ICONS[mode] || TRAVELER_ICONS.plane;
+
+    if (obj.userData?.vehicleMode !== mode || obj.userData?.renderMode !== icon.renderMode) {
+      applyVehicleRenderMode(obj, mode);
+    }
+
+    if (icon.renderMode === 'billboard') {
+      positionVehicleBillboard(obj, vehicle, globeRadius);
+    } else {
+      orientVehicleObject(obj, vehicle, globeRadius);
+    }
+
+    obj.renderOrder = 12;
+    obj.userData = { ...obj.userData, ...vehicle, type: 'vehicle', vehicleMode: mode };
+  }, [applyVehicleRenderMode, orientVehicleObject, positionVehicleBillboard]);
+
+  const createVehicleObject = useCallback((vehicle, globeRadius) => {
+    const mode = vehicle.vehicleMode || 'plane';
+    const group = new THREE.Group();
+    group.renderOrder = 12;
+    applyVehicleRenderMode(group, mode);
+    updateVehicleObject(group, vehicle, globeRadius);
+    return group;
+  }, [applyVehicleRenderMode, updateVehicleObject]);
+
+  const createGlobeSprite = useCallback((item, globeRadius) => {
+    return item.type === 'vehicle'
+      ? createVehicleObject(item, globeRadius)
+      : createLabelSprite(item, globeRadius);
+  }, [createLabelSprite, createVehicleObject]);
+
+  const updateGlobeSprite = useCallback((obj, item, globeRadius) => {
+    if (!obj || !item) return;
+
+    if (item.type === 'vehicle') {
+      updateVehicleObject(obj, item, globeRadius);
+      return;
+    }
+
+    obj.position.copy(toGlobeVector(Number(item.lat), Number(item.lng), item.active ? 0.035 : item.focusMode ? 0.012 : 0.018, globeRadius));
+    obj.userData = item;
+  }, [toGlobeVector, updateVehicleObject]);
+
+  const customLayerData = useMemo(() => {
+    const vehicleData = airplanePos
+      ? [{
+          ...airplanePos,
+          lat: Number(airplanePos.lat),
+          lng: Number(airplanePos.lng),
+          vehicleMode: normalizeTransport(null, vehicleMode),
+          type: 'vehicle'
+        }]
+      : [];
+
+    return [...labelsData, ...vehicleData];
+  }, [airplanePos, labelsData, vehicleMode]);
+
+  const ringsData = useMemo(() => {
+    return cityClusters.map(c => {
+      const active = currentEvent?.to_name === c.name;
+      const currentLegVisual = getTransportVisual(currentEvent, active, isFlightFocusMode, vehicleMode);
+
+      return {
+        lat: c.lat,
+        lng: c.lng,
+        active,
+        focusMode: isFlightFocusMode,
+        routeRole: c.routeRole,
+        transport: currentLegVisual.transport,
+        visual: currentLegVisual
+      };
+    });
+  }, [cityClusters, currentEvent, isFlightFocusMode, vehicleMode]);
+
+  const applySunPosition = useCallback((sunPosition) => {
+    if (!sunPosition || !globeEl.current) return;
+
+    const scene = globeEl.current.scene();
+    const sunLight = scene.getObjectByName('SunLight');
+    if (!sunLight) return;
+
+    const ALTITUDE = 100;
+    const phi = (90 - sunPosition.lat) * (Math.PI / 180);
+    const theta = (sunPosition.lng + 180) * (Math.PI / 180);
+
+    const x = -(ALTITUDE * Math.sin(phi) * Math.cos(theta));
+    const z = ALTITUDE * Math.sin(phi) * Math.sin(theta);
+    const y = ALTITUDE * Math.cos(phi);
+
+    sunLight.position.set(x, y, z);
+  }, []);
 
   // Setup Lighting Effect
   useEffect(() => {
@@ -148,42 +698,38 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
         const ambient = new THREE.AmbientLight(0x404040, 0.2); // Soft low light
         scene.add(ambient);
       }
-    }
-  }, []);
 
-  // Update Sun Position
+      applySunPosition(calculateSunPosition(new Date()));
+    }
+  }, [applySunPosition]);
+
+
   useEffect(() => {
-    if (sunPos && globeEl.current) {
-      const scene = globeEl.current.scene();
-      const sunLight = scene.getObjectByName('SunLight');
-      if (sunLight) {
-        // Convert Lat/Lng to Cartesian for the light source
-        // Place it far away
-        const ALTITUDE = 100; // Far enough
-        const phi = (90 - sunPos.lat) * (Math.PI / 180);
-        const theta = (sunPos.lng + 180) * (Math.PI / 180);
-        
-        const x = -(ALTITUDE * Math.sin(phi) * Math.cos(theta));
-        const z = (ALTITUDE * Math.sin(phi) * Math.sin(theta));
-        const y = (ALTITUDE * Math.cos(phi));
-        
-        sunLight.position.set(x, y, z);
+    clearCameraTimers();
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    if (currentEventIndex >= 0 && currentEventIndex < events.length && isPlaying && currentEvent) {
+      const current = currentEvent;
+      const fromLat = Number(current.from_lat);
+      const fromLng = Number(current.from_lng);
+      const toLat = Number(current.to_lat);
+      const toLng = Number(current.to_lng);
+
+      if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) {
+        setAirplanePos(null);
+        return undefined;
       }
-    }
-  }, [sunPos]);
-
-
-  useEffect(() => {
-    if (currentEventIndex >= 0 && currentEventIndex < events.length && isPlaying) {
-      const current = events[currentEventIndex];
 
       // Calculate flight distance for physics scaling
-      const distance = getGreatCircleDistance(
-        current.from_lat, current.from_lng,
-        current.to_lat, current.to_lng
-      );
+      const distance = getGreatCircleDistance(fromLat, fromLng, toLat, toLng);
+      const interpolateRoute = createGreatCircleInterpolator(fromLat, fromLng, toLat, toLng);
 
-      let startTime = Date.now();
+      let startTime = performance.now();
+      lastSimulationFrameRef.current = 0;
+      lastSunUpdateRef.current = 0;
       // Scale duration with distance - longer flights take more time to visualize
       const baseDuration = Math.max(5000, Math.min(distance * 0.8, 12000));
       const duration = baseDuration / speed;
@@ -193,9 +739,19 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
 
       let previousHeading = null;
 
-      const updateAirplane = () => {
-        const elapsed = Date.now() - startTime;
+      const updateAirplane = (frameTime = performance.now()) => {
+        const elapsed = frameTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
+
+        if (
+          progress < 1 &&
+          frameTime - lastSimulationFrameRef.current < SIMULATION_FRAME_INTERVAL_MS
+        ) {
+          animationFrameRef.current = requestAnimationFrame(updateAirplane);
+          return;
+        }
+
+        lastSimulationFrameRef.current = frameTime;
 
         // Calculate flight physics parameters
         const phase = calculateFlightPhase(progress);
@@ -203,20 +759,26 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
         const speedMultiplier = calculateSpeed(progress, 1.0);
 
         // Calculate Simulated Current Time (4 hours of flight simulation)
-        const simulatedTime = new Date(startDate.getTime() + (progress * 4 * 60 * 60 * 1000));
-        setSunPos(calculateSunPosition(simulatedTime));
+        if (
+          progress === 1 ||
+          frameTime - lastSunUpdateRef.current >= SUN_UPDATE_INTERVAL_MS
+        ) {
+          const simulatedTime = new Date(startDate.getTime() + (progress * 4 * 60 * 60 * 1000));
+          applySunPosition(calculateSunPosition(simulatedTime));
+          lastSunUpdateRef.current = frameTime;
+        }
 
         // Use Great Circle Interpolation for realistic curved path
-        const nextPos = getIntermediatePoint(current.from_lat, current.from_lng, current.to_lat, current.to_lng, progress);
+        const nextPos = interpolateRoute(progress);
 
         const futureProgress = Math.min(progress + 0.01, 1);
-        const futurePos = getIntermediatePoint(current.from_lat, current.from_lng, current.to_lat, current.to_lng, futureProgress);
+        const futurePos = interpolateRoute(futureProgress);
 
         const heading = getHeading(
-          nextPos.lat * Math.PI / 180,
-          nextPos.lng * Math.PI / 180,
-          futurePos.lat * Math.PI / 180,
-          futurePos.lng * Math.PI / 180
+          nextPos.lat * DEG_TO_RAD,
+          nextPos.lng * DEG_TO_RAD,
+          futurePos.lat * DEG_TO_RAD,
+          futurePos.lng * DEG_TO_RAD
         );
 
         // Calculate banking angle based on heading change
@@ -232,6 +794,8 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
         setAirplanePos({
           lat: nextPos.lat,
           lng: nextPos.lng,
+          targetLat: futurePos.lat,
+          targetLng: futurePos.lng,
           altitude,
           heading,
           bank,
@@ -239,83 +803,74 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
           phase
         });
 
-        // Spawn contrail particles during cruise phase
-        if (phase === FlightPhase.CRUISE && Math.random() < 0.35) {
-          setContrailParticles(prev => [
-            ...prev,
-            {
-              id: Date.now() + Math.random(),
-              lat: nextPos.lat,
-              lng: nextPos.lng,
-              alt: altitude - 0.015, // Slightly below aircraft
-              createdAt: Date.now(),
-              opacity: 1.0
-            }
-          ].slice(-60)); // Keep last 60 particles for performance
-        }
-
         if (progress < 1) {
-          requestAnimationFrame(updateAirplane);
+          animationFrameRef.current = requestAnimationFrame(updateAirplane);
         } else {
           setAirplanePos(null);
-          // Clear contrails when flight ends
-          setTimeout(() => setContrailParticles([]), 500);
         }
       };
 
       updateAirplane();
 
       // Camera Animation - only auto-follow if NOT in free camera mode
-      if (!freeCameraMode) {
+      if (!freeCameraMode && globeEl.current) {
         // Calculate optimal altitudes based on flight distance
         const initialCameraAlt = calculateCameraAltitude(distance, 'start');
         const finalCameraAlt = calculateCameraAltitude(distance, 'end');
 
         // Calculate arc midpoint for better framing
-        const midpointLat = (current.from_lat + current.to_lat) / 2;
-        const midpointLng = (current.from_lng + current.to_lng) / 2;
+        const midpointLat = (fromLat + toLat) / 2;
+        const midpointLng = (fromLng + toLng) / 2;
         const midpointAlt = initialCameraAlt * 1.15; // Slightly zoom out at midpoint to see full arc
 
         // 3-phase camera movement: from → midpoint → to
         // Phase 1: Move to origin city
         globeEl.current.pointOfView({
-          lat: current.from_lat,
-          lng: current.from_lng,
+          lat: fromLat,
+          lng: fromLng,
           altitude: initialCameraAlt
         }, 800);
 
         // Phase 2: Pan to arc midpoint (shows full flight path)
-        setTimeout(() => {
-          globeEl.current.pointOfView({
+        const midpointTimer = setTimeout(() => {
+          globeEl.current?.pointOfView({
             lat: midpointLat,
             lng: midpointLng,
             altitude: midpointAlt
           }, 2000); // 2 seconds to reach midpoint
         }, 1000);
+        cameraTimerRefs.current.push(midpointTimer);
 
         // Phase 3: Continue to destination
-        setTimeout(() => {
-          globeEl.current.pointOfView({
-            lat: current.to_lat,
-            lng: current.to_lng,
+        const destinationTimer = setTimeout(() => {
+          globeEl.current?.pointOfView({
+            lat: toLat,
+            lng: toLng,
             altitude: finalCameraAlt
           }, 2000); // 2 seconds from midpoint to destination
         }, 3000); // Start after reaching midpoint
+        cameraTimerRefs.current.push(destinationTimer);
       }
       // If freeCameraMode === true, camera stays wherever user positioned it
     } else {
       setAirplanePos(null);
-      setContrailParticles([]);
       // Default Sun to NOW if idle
-      setSunPos(calculateSunPosition(new Date()));
+      applySunPosition(calculateSunPosition(new Date()));
     }
-  }, [currentEventIndex, isPlaying, speed, events, freeCameraMode]); // Added speed, events, and freeCameraMode dependency
+    return () => {
+      clearCameraTimers();
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [currentEventIndex, isPlaying, speed, events, currentEvent, freeCameraMode, applySunPosition]); // Added speed, events, and freeCameraMode dependency
 
   // Smooth transition when exiting free camera mode
   useEffect(() => {
     if (!freeCameraMode && isPlaying && currentEventIndex >= 0 && currentEventIndex < events.length) {
       // Gently return to auto-follow position when re-locking camera
-      const current = events[currentEventIndex];
+      const current = currentEvent;
       if (current && globeEl.current) {
         // Calculate distance for optimal altitude
         const distance = getGreatCircleDistance(
@@ -331,23 +886,7 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
         }, 1500);  // Smooth 1.5s transition
       }
     }
-  }, [freeCameraMode, events, currentEventIndex, isPlaying]);
-
-  // Contrail particle fade-out effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setContrailParticles(prev =>
-        prev
-          .filter(p => Date.now() - p.createdAt < 7000) // Remove particles older than 7 seconds
-          .map(p => ({
-            ...p,
-            opacity: Math.max(0, 1.0 - ((Date.now() - p.createdAt) / 7000)) // Fade out over 7 seconds
-          }))
-      );
-    }, 150); // Update every 150ms for smooth fade
-
-    return () => clearInterval(interval);
-  }, []);
+  }, [freeCameraMode, events, currentEvent, currentEventIndex, isPlaying]);
 
   // Handle Window Resize
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -378,264 +917,33 @@ const TravelGlobe = ({ events, currentEventIndex, isPlaying, onGlobeClick, onMar
       atmosphereAltitude={0.15}
       
       arcsData={arcsData}
-      arcColor={d => d.active ? ['#00f2ff', '#ffffff'] : ['rgba(0, 242, 255, 0.3)', 'rgba(0, 242, 255, 0.1)']} 
-      arcDashLength={0.4}
-      arcDashGap={0.2}
-      arcDashAnimateTime={d => d.active ? 1000 : 5000}
-      arcAltitude={d => d.active ? 0.25 : 0.1}
-      arcStroke={d => d.active ? 1.0 : 0.5}
+      arcColor={d => d.visual?.arcColor || d.color}
+      arcDashLength={d => d.visual?.dashLength ?? 0.3}
+      arcDashGap={d => d.visual?.dashGap ?? 0.3}
+      arcDashAnimateTime={d => d.visual?.dashTime ?? 5000}
+      arcAltitude={d => d.visual?.altitude ?? 0.1}
+      arcStroke={d => d.visual?.stroke ?? 0.35}
 
       // Radar Beacons on surface
-      ringsData={cityClusters.map(c => ({ lat: c.lat, lng: c.lng }))}
-      ringColor={() => '#00f2ff'}
-      ringMaxRadius={2}
-      ringPropagationSpeed={3}
-      ringRepeatPeriod={1500}
+      ringsData={ringsData}
+      ringColor={d => d.active ? d.visual?.ringColor || '#ffe2a8' : d.focusMode ? 'rgba(158, 207, 198, 0.24)' : 'rgba(158, 207, 198, 0.58)'}
+      ringMaxRadius={d => d.active ? d.visual?.ringMaxRadius || 3.2 : d.focusMode ? 0.65 : 1.85}
+      ringPropagationSpeed={d => d.active ? d.visual?.ringSpeed || 4 : d.focusMode ? 1.1 : 2}
+      ringRepeatPeriod={d => d.active ? d.visual?.ringPeriod || 900 : d.focusMode ? 2700 : 2100}
 
-      // Floating Labels, Airplane & Contrails
-      htmlElementsData={[
-        ...(airplanePos ? [{ ...airplanePos, type: 'airplane' }] : []),
-        ...contrailParticles.map(p => ({ ...p, type: 'contrail' })),
-        ...cityClusters.map(c => {
-          // Visibility Logic:
-          // If Playing: Show only FROM and TO cities.
-          // If Idle: Show ALL cities.
-          const isFrom = events[currentEventIndex]?.from_name === c.name;
-          const isTo = events[currentEventIndex]?.to_name === c.name;
-          
-          const isVisible = isPlaying ? (isFrom || isTo) : true;
-          
-          if (!isVisible) return null;
-
-          return { 
-            lat: c.lat, 
-            lng: c.lng, 
-            name: c.name, 
-            count: c.count,
-            type: 'label',
-            active: isTo // "To" is active (highlighted)
-          };
-        }).filter(Boolean)
-      ]}
-      htmlElement={d => {
-        const el = document.createElement('div');
-        if (d.type === 'airplane') {
-          // Calculate pseudo-3D transforms based on physics
-          const bank = d.bank || 0;
-          const pitch = d.pitch || 0;
-          const altitude = d.altitude || 0.2;
-          const phase = d.phase || 'CRUISE';
-
-          // Scale aircraft based on altitude (higher = appears smaller/further)
-          const scale = 1.0 + (altitude * 0.6);
-
-          // Pseudo-3D rotation - simulate banking with rotateY
-          // Positive bank = right wing down = rotateY positive
-          const bankTransform = `rotateY(${bank}deg)`;
-
-          // Pitch affects vertical skew slightly
-          const pitchSkew = pitch * 0.3; // Subtle skew effect
-
-          // Engine glow intensity varies by phase
-          const engineGlowIntensity = phase === 'TAKEOFF' || phase === 'CLIMB' ? 1.0 : 0.6;
-          const engineGlowHeight = phase === 'TAKEOFF' ? 40 : 30;
-
-          // Shadow depth based on altitude
-          const shadowBlur = 5 + altitude * 15;
-          const shadowOffset = 2 + altitude * 8;
-
-          // Enhanced Sci-Fi Jet SVG with Physics
-          el.innerHTML = `
-            <div style="
-              transform: rotate(${d.heading || 0}deg) ${bankTransform} scale(${scale});
-              transform-style: preserve-3d;
-              transition: transform 0.2s linear;
-              position: relative;
-              perspective: 1000px;
-              width: 120px;
-              height: 120px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            ">
-               <!-- Engine Glow Effect (varies by phase) -->
-               <div style="
-                  position: absolute;
-                  bottom: ${-engineGlowHeight}px;
-                  left: 50%;
-                  transform: translateX(-50%) skewY(${pitchSkew}deg);
-                  width: 12px;
-                  height: ${engineGlowHeight}px;
-                  background: linear-gradient(to bottom, rgba(0, 242, 255, ${engineGlowIntensity}), transparent);
-                  border-radius: 6px;
-                  filter: blur(5px);
-                  z-index: -1;
-                  opacity: ${engineGlowIntensity};
-               "></div>
-
-               <!-- Modern Passenger Jet SVG -->
-               <svg width="110" height="110" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"
-                    style="
-                      filter: drop-shadow(0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 15px #00f2ff);
-                      transform: rotate(180deg) skewY(${pitchSkew}deg);
-                    ">
-                  <!-- Fuselage body (white/silver gradient) -->
-                  <ellipse cx="256" cy="256" rx="25" ry="140"
-                           fill="url(#fuselageGradient)"
-                           stroke="#88ccee"
-                           stroke-width="3"/>
-
-                  <!-- Main wings (swept back design) -->
-                  <path d="M 180 256 Q 120 240 80 200 L 95 210 Q 130 240 180 250 Z"
-                        fill="url(#wingGradient)"
-                        stroke="#00f2ff"
-                        stroke-width="2"/>
-                  <path d="M 332 256 Q 392 240 432 200 L 417 210 Q 382 240 332 250 Z"
-                        fill="url(#wingGradient)"
-                        stroke="#00f2ff"
-                        stroke-width="2"/>
-
-                  <!-- Tail wings (horizontal stabilizers) -->
-                  <path d="M 240 110 L 200 90 L 210 100 L 245 115 Z"
-                        fill="url(#wingGradient)"
-                        stroke="#00f2ff"
-                        stroke-width="2"/>
-                  <path d="M 272 110 L 312 90 L 302 100 L 267 115 Z"
-                        fill="url(#wingGradient)"
-                        stroke="#00f2ff"
-                        stroke-width="2"/>
-
-                  <!-- Vertical stabilizer (tail fin) -->
-                  <path d="M 246 80 L 256 40 L 266 80 L 256 90 Z"
-                        fill="url(#tailGradient)"
-                        stroke="#00f2ff"
-                        stroke-width="2.5"/>
-
-                  <!-- Engines (under wings) -->
-                  <ellipse cx="160" cy="270" rx="12" ry="25"
-                           fill="url(#engineGradient)"
-                           stroke="#00d4ff"
-                           stroke-width="2"/>
-                  <ellipse cx="352" cy="270" rx="12" ry="25"
-                           fill="url(#engineGradient)"
-                           stroke="#00d4ff"
-                           stroke-width="2"/>
-
-                  <!-- Engine intakes (glowing) -->
-                  <ellipse cx="160" cy="285" rx="8" ry="12" fill="#0088ff" opacity="0.8"/>
-                  <ellipse cx="352" cy="285" rx="8" ry="12" fill="#0088ff" opacity="0.8"/>
-
-                  <!-- Cockpit windows -->
-                  <ellipse cx="256" cy="130" rx="10" ry="15" fill="#00f2ff" opacity="0.9"/>
-                  <ellipse cx="256" cy="150" rx="8" ry="10" fill="#00d4ff" opacity="0.7"/>
-
-                  <!-- Passenger windows (row of lights) -->
-                  <circle cx="256" cy="200" r="3" fill="#ffcc00" opacity="0.8"/>
-                  <circle cx="256" cy="220" r="3" fill="#ffcc00" opacity="0.8"/>
-                  <circle cx="256" cy="240" r="3" fill="#ffcc00" opacity="0.8"/>
-                  <circle cx="256" cy="260" r="3" fill="#ffcc00" opacity="0.8"/>
-                  <circle cx="256" cy="280" r="3" fill="#ffcc00" opacity="0.8"/>
-                  <circle cx="256" cy="300" r="3" fill="#ffcc00" opacity="0.8"/>
-                  <circle cx="256" cy="320" r="3" fill="#ffcc00" opacity="0.8"/>
-
-                  <!-- Wing position lights (red/green) -->
-                  <circle cx="85" cy="205" r="4" fill="#ff0000" opacity="${Math.abs(bank) / 40 + 0.6}"/>
-                  <circle cx="427" cy="205" r="4" fill="#00ff00" opacity="${Math.abs(bank) / 40 + 0.6}"/>
-
-                  <!-- Fuselage stripe (airline livery) -->
-                  <path d="M 240 180 Q 230 256 240 330"
-                        stroke="#00f2ff"
-                        stroke-width="2"
-                        fill="none"
-                        opacity="0.6"/>
-                  <path d="M 272 180 Q 282 256 272 330"
-                        stroke="#00f2ff"
-                        stroke-width="2"
-                        fill="none"
-                        opacity="0.6"/>
-
-                  <!-- Gradient Definitions -->
-                  <defs>
-                    <linearGradient id="fuselageGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" style="stop-color:#e0e8f0;stop-opacity:1" />
-                      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#d0dae5;stop-opacity:1" />
-                    </linearGradient>
-
-                    <linearGradient id="wingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" style="stop-color:#f0f4f8;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#c8d6e5;stop-opacity:1" />
-                    </linearGradient>
-
-                    <linearGradient id="tailGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" style="stop-color:#00f2ff;stop-opacity:0.9" />
-                      <stop offset="50%" style="stop-color:#0099cc;stop-opacity:0.8" />
-                      <stop offset="100%" style="stop-color:#006699;stop-opacity:0.7" />
-                    </linearGradient>
-
-                    <radialGradient id="engineGradient">
-                      <stop offset="0%" style="stop-color:#2a3f5f;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#0a1428;stop-opacity:1" />
-                    </radialGradient>
-                  </defs>
-               </svg>
-
-               <!-- Flight number with phase indicator -->
-               <div style="
-                  color: #00f2ff;
-                  font-family: 'Orbitron', sans-serif;
-                  font-size: 11px;
-                  margin-top: -5px;
-                  text-align: center;
-                  text-shadow: 0 0 8px #00f2ff;
-                  font-weight: bold;
-                  letter-spacing: 0.8px;
-                  opacity: 0.95;
-               ">
-                 ${phase === 'TAKEOFF' ? '✈️↗' : phase === 'APPROACH' ? '✈️↘' : '✈️'}
-               </div>
-            </div>
-          `;
-        } else if (d.type === 'contrail') {
-          // Contrail particle rendering
-          el.innerHTML = `
-            <div style="
-              width: 45px;
-              height: 3px;
-              background: linear-gradient(90deg,
-                transparent,
-                rgba(255, 255, 255, ${d.opacity * 0.5}),
-                transparent);
-              pointer-events: none;
-              border-radius: 2px;
-              box-shadow: 0 0 4px rgba(255, 255, 255, ${d.opacity * 0.3});
-            "></div>
-          `;
-          el.style.pointerEvents = 'none';
-        } else {
-          el.innerHTML = `
-            <div class="hologram-label ${d.active ? 'active' : ''}" style="pointer-events: auto; cursor: pointer;">
-              <div class="hologram-pin"></div>
-              <div class="hologram-text">
-                ${d.name} ${d.count > 1 ? `<span class="signal-count">x${d.count}</span>` : ''}
-              </div>
-            </div>
-          `;
-          el.onclick = () => onMarkerClick && onMarkerClick(d);
-        }
-        el.style.pointerEvents = d.type === 'airplane' || d.type === 'contrail' ? 'none' : 'auto';
-        return el;
-      }}
-
-      htmlAltitude={d => {
-        if (d.type === 'airplane') return d.altitude || 0.2;
-        if (d.type === 'contrail') return d.alt || 0.18;
-        return 0; // City labels at surface
+      customLayerData={customLayerData}
+      customThreeObject={createGlobeSprite}
+      customThreeObjectUpdate={updateGlobeSprite}
+      onCustomLayerClick={(obj) => {
+        const data = obj.userData || obj;
+        if (data.type !== 'vehicle') onMarkerClick && onMarkerClick(data);
       }}
 
       onGlobeClick={({ lat, lng }) => onGlobeClick && onGlobeClick(lat, lng)}
     />
   );
-};
+});
+
+TravelGlobe.displayName = 'TravelGlobe';
 
 export default TravelGlobe;

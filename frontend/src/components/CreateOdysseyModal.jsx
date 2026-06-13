@@ -1,25 +1,47 @@
 import React, { useState, useRef } from 'react';
-import { X, Calendar, MapPin, Plus, Camera, ArrowRight, Plane, Globe, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Calendar, MapPin, Plus, Camera, ArrowRight, Plane, Globe, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import './CreateOdysseyModal.layout.css';
 import './CreateOdysseyModal.form.css';
 import './CreateOdysseyModal.itinerary.css'; 
 
-// Aesthetic constants
-const HUD_CYAN = '#00f3ff';
-const HUD_DARK = 'rgba(10, 20, 30, 0.95)';
-
-const FREQUENT_CITIES = ['Seoul', 'Tokyo', 'Osaka', 'New York', 'Paris', 'London', 'Bangkok', 'Singapore'];
+const FREQUENT_CITIES = ['서울', '제주', '부산', '인천', '강릉', '여수', '도쿄', '오사카', '후쿠오카', '방콕', '다낭', '싱가포르'];
 
 // City Coordinates for Distance Calculation
 const CITY_COORDINATES = {
+    '서울': { lat: 37.5665, lng: 126.9780 },
     'seoul': { lat: 37.5665, lng: 126.9780 },
+    '인천': { lat: 37.4563, lng: 126.7052 },
+    'incheon': { lat: 37.4563, lng: 126.7052 },
+    '부산': { lat: 35.1796, lng: 129.0756 },
+    'busan': { lat: 35.1796, lng: 129.0756 },
+    '제주': { lat: 33.4996, lng: 126.5312 },
+    '제주도': { lat: 33.4996, lng: 126.5312 },
+    '제주시': { lat: 33.4996, lng: 126.5312 },
+    'jeju': { lat: 33.4996, lng: 126.5312 },
+    'jeju-do': { lat: 33.4996, lng: 126.5312 },
+    'jeju city': { lat: 33.4996, lng: 126.5312 },
+    '강릉': { lat: 37.7519, lng: 128.8761 },
+    'gangneung': { lat: 37.7519, lng: 128.8761 },
+    '여수': { lat: 34.7604, lng: 127.6622 },
+    'yeosu': { lat: 34.7604, lng: 127.6622 },
     'tokyo': { lat: 35.6762, lng: 139.6503 },
+    '도쿄': { lat: 35.6762, lng: 139.6503 },
     'osaka': { lat: 34.6937, lng: 135.5023 },
+    '오사카': { lat: 34.6937, lng: 135.5023 },
+    '후쿠오카': { lat: 33.5904, lng: 130.4017 },
+    'fukuoka': { lat: 33.5904, lng: 130.4017 },
     'new york': { lat: 40.7128, lng: -74.0060 },
+    '뉴욕': { lat: 40.7128, lng: -74.0060 },
     'paris': { lat: 48.8566, lng: 2.3522 },
+    '파리': { lat: 48.8566, lng: 2.3522 },
     'london': { lat: 51.5074, lng: -0.1278 },
+    '런던': { lat: 51.5074, lng: -0.1278 },
     'bangkok': { lat: 13.7563, lng: 100.5018 },
+    '방콕': { lat: 13.7563, lng: 100.5018 },
+    '다낭': { lat: 16.0544, lng: 108.2022 },
+    'da nang': { lat: 16.0544, lng: 108.2022 },
     'singapore': { lat: 1.3521, lng: 103.8198 },
+    '싱가포르': { lat: 1.3521, lng: 103.8198 },
     'san francisco': { lat: 37.7749, lng: -122.4194 },
     'los angeles': { lat: 34.0522, lng: -118.2437 },
     'beijing': { lat: 39.9042, lng: 116.4074 },
@@ -34,13 +56,42 @@ const CITY_COORDINATES = {
     'mumbai': { lat: 19.0760, lng: 72.8777 }
 };
 
-const calculateDistance = (city1, city2) => {
-    if (!city1 || !city2) return null;
-    const c1 = CITY_COORDINATES[city1.toLowerCase()];
-    const c2 = CITY_COORDINATES[city2.toLowerCase()];
-    
-    if (!c1 || !c2) return null;
+const createManualLocation = () => ({ lat: '', lng: '', expanded: false });
 
+const getKnownCityCoords = (city) => {
+    if (!city) return null;
+    return CITY_COORDINATES[city.trim().toLowerCase()] || null;
+};
+
+const isValidLat = (value) => value !== '' && !Number.isNaN(Number(value)) && Number(value) >= -90 && Number(value) <= 90;
+const isValidLng = (value) => value !== '' && !Number.isNaN(Number(value)) && Number(value) >= -180 && Number(value) <= 180;
+
+const getManualCoords = (manualLocation) => {
+    if (!manualLocation || !isValidLat(manualLocation.lat) || !isValidLng(manualLocation.lng)) return null;
+    return { lat: Number(manualLocation.lat), lng: Number(manualLocation.lng) };
+};
+
+const resolveLocation = (city, manualLocation) => {
+    const trimmedCity = city.trim();
+    const knownCoords = getKnownCityCoords(trimmedCity);
+    if (knownCoords) {
+        return { status: 'valid', source: 'known', label: trimmedCity, coords: knownCoords };
+    }
+
+    const manualCoords = getManualCoords(manualLocation);
+    if (trimmedCity && manualCoords) {
+        return { status: 'valid', source: 'manual', label: trimmedCity, coords: manualCoords };
+    }
+
+    if (trimmedCity) {
+        return { status: 'invalid', source: 'missing', label: trimmedCity, coords: null };
+    }
+
+    return { status: 'idle', source: 'empty', label: '', coords: null };
+};
+
+const calculateDistanceByCoords = (c1, c2) => {
+    if (!c1 || !c2) return null;
     const R = 6371; // km
     const dLat = (c2.lat - c1.lat) * Math.PI / 180;
     const dLon = (c2.lng - c1.lng) * Math.PI / 180;
@@ -51,6 +102,134 @@ const calculateDistance = (city1, city2) => {
               Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
     return Math.round(R * c);
+};
+
+const LocationField = ({
+    value,
+    onChange,
+    manualLocation,
+    onManualChange,
+    dropdownId,
+    placeholder,
+    hint,
+    icon = <MapPin size={16} className="input-field-icon" />,
+    inputClassName = 'hud-input'
+}) => {
+    const resolved = resolveLocation(value, manualLocation);
+    const showManualFields = manualLocation.expanded || resolved.status === 'invalid' || resolved.source === 'manual';
+
+    const updateManual = (field, fieldValue) => {
+        onManualChange({ ...manualLocation, [field]: fieldValue });
+    };
+
+    const closeDropdown = () => {
+        const dropdown = document.getElementById(dropdownId);
+        if (dropdown) dropdown.style.display = 'none';
+    };
+
+    const selectCity = (city) => {
+        onChange(city);
+        onManualChange(createManualLocation());
+        closeDropdown();
+    };
+
+    return (
+        <div className="location-field">
+            <div className="hud-input-wrapper dropdown-container" onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    closeDropdown();
+                }
+            }}>
+                {icon}
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    onFocus={() => {
+                        const dropdown = document.getElementById(dropdownId);
+                        if (dropdown) dropdown.style.display = 'flex';
+                    }}
+                    className={`${inputClassName} location-input-${resolved.status}`}
+                />
+
+                {resolved.status === 'valid' && (
+                    <div className={`input-status-icon ${resolved.source}`}>
+                        <CheckCircle size={14} />
+                    </div>
+                )}
+                {resolved.status === 'invalid' && (
+                    <div className="input-status-icon invalid">
+                        <XCircle size={14} />
+                    </div>
+                )}
+
+                <div id={dropdownId} className="city-chips floating-chips">
+                    <span className="city-chip-hint">{hint}</span>
+                    {FREQUENT_CITIES.map(city => (
+                        <button
+                            key={city}
+                            type="button"
+                            className="city-chip"
+                            onClick={() => selectCity(city)}
+                        >
+                            {city}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {resolved.status === 'valid' && (
+                <div className={`location-confirm-chip ${resolved.source}`}>
+                    <CheckCircle size={12} />
+                    <span>{resolved.label}</span>
+                    <small>
+                        {resolved.source === 'manual' ? '직접 좌표' : '등록 가능'} · {resolved.coords.lat.toFixed(4)}, {resolved.coords.lng.toFixed(4)}
+                    </small>
+                </div>
+            )}
+
+            {resolved.status === 'invalid' && (
+                <div className="location-warning-chip">
+                    <XCircle size={12} />
+                    <span>아직 위치를 확인하지 못했어요. 이름을 고치거나 좌표로 확정하세요.</span>
+                </div>
+            )}
+
+            <button
+                type="button"
+                className="manual-location-toggle"
+                onClick={() => onManualChange({ ...manualLocation, expanded: !manualLocation.expanded })}
+            >
+                {showManualFields ? '좌표 입력 닫기' : '이름/좌표로 직접 등록'}
+            </button>
+
+            {showManualFields && (
+                <div className="manual-location-panel">
+                    <input
+                        type="number"
+                        step="0.0001"
+                        min="-90"
+                        max="90"
+                        placeholder="위도"
+                        value={manualLocation.lat}
+                        onChange={e => updateManual('lat', e.target.value)}
+                        className={`manual-coordinate-input ${manualLocation.lat && !isValidLat(manualLocation.lat) ? 'invalid' : ''}`}
+                    />
+                    <input
+                        type="number"
+                        step="0.0001"
+                        min="-180"
+                        max="180"
+                        placeholder="경도"
+                        value={manualLocation.lng}
+                        onChange={e => updateManual('lng', e.target.value)}
+                        className={`manual-coordinate-input ${manualLocation.lng && !isValidLng(manualLocation.lng) ? 'invalid' : ''}`}
+                    />
+                </div>
+            )}
+        </div>
+    );
 };
 
 const validateDate = (dateStr) => {
@@ -66,10 +245,12 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState(''); // New: Explicit End Date for Round Trip
   const [tripTitle, setTripTitle] = useState('');
+  const [formError, setFormError] = useState('');
+  const [startManualLocation, setStartManualLocation] = useState(createManualLocation());
   
   // Leg structure: { id: 1, destination: '', date: '', media: [] }
   const [legs, setLegs] = useState([
-    { id: 1, destination: '', date: '', media: [] }
+    { id: 1, destination: '', date: '', media: [], manualLocation: createManualLocation() }
   ]);
 
   const fileInputRefs = useRef({});
@@ -79,7 +260,7 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
 
   const handleAddLeg = () => {
     const newId = legs.length > 0 ? Math.max(...legs.map(l => l.id)) + 1 : 1;
-    setLegs([...legs, { id: newId, destination: '', date: '', media: [] }]);
+    setLegs([...legs, { id: newId, destination: '', date: '', media: [], manualLocation: createManualLocation() }]);
   };
 
   const handleRemoveLeg = (id) => {
@@ -89,6 +270,10 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
 
   const updateLeg = (id, field, value) => {
     setLegs(legs.map(l => l.id === id ? { ...l, [field]: value } : l));
+  };
+
+  const updateLegManualLocation = (id, manualLocation) => {
+    setLegs(legs.map(l => l.id === id ? { ...l, manualLocation } : l));
   };
 
   const handleFileClick = (legId) => {
@@ -123,40 +308,77 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
   };
 
   const handleSubmit = () => {
+    setFormError('');
+    const startLocation = resolveLocation(startCity, startManualLocation);
     // Validation
     if (!startCity || !startDate || !tripTitle) {
-      alert("Please fill in all required fields (Title, Start City, Start Date)");
+      setFormError("여행 이름, 출발 도시, 출발일을 입력해 주세요.");
+      return;
+    }
+    if (startLocation.status !== 'valid') {
+      setFormError("출발 도시를 확인할 수 없어요. 추천 도시를 선택하거나 좌표를 직접 입력해 주세요.");
       return;
     }
     
     if (!validateDate(startDate)) {
-       alert("Invalid Start Date Format. Please use YYYY-MM-DD.");
+       setFormError("출발일은 YYYY-MM-DD 형식으로 입력해 주세요.");
        return;
     }
     if (tripType === 'round' && endDate && !validateDate(endDate)) {
-        alert("Invalid Return Date Format. Please use YYYY-MM-DD.");
+        setFormError("돌아오는 날은 YYYY-MM-DD 형식으로 입력해 주세요.");
+        return;
+    }
+    if (tripType === 'round' && !endDate) {
+        setFormError("왕복 여행은 돌아오는 날을 입력해 주세요.");
+        return;
+    }
+    if (tripType === 'round' && endDate < startDate) {
+        setFormError("돌아오는 날은 출발일보다 빠를 수 없습니다.");
         return;
     }
 
     for (let leg of legs) {
+      const legLocation = resolveLocation(leg.destination, leg.manualLocation);
       if (!leg.destination || !leg.date) {
-        alert("Please complete all itinerary legs");
+        setFormError("모든 경유지의 도시와 이동일을 입력해 주세요.");
+        return;
+      }
+      if (legLocation.status !== 'valid') {
+        setFormError(`${leg.id}번째 경유지의 위치를 확인할 수 없어요. 추천 도시를 선택하거나 좌표를 직접 입력해 주세요.`);
         return;
       }
       if (!validateDate(leg.date)) {
-         alert(`Invalid Date Format for Waypoint ${leg.id}. Please use YYYY-MM-DD.`);
+         setFormError(`${leg.id}번째 경유지의 이동일은 YYYY-MM-DD 형식으로 입력해 주세요.`);
          return;
+      }
+      if (leg.date < startDate) {
+         setFormError(`${leg.id}번째 경유지의 이동일은 출발일보다 빠를 수 없습니다.`);
+         return;
+      }
+      if (tripType === 'round' && leg.date > endDate) {
+         setFormError(`${leg.id}번째 경유지의 이동일은 돌아오는 날보다 늦을 수 없습니다.`);
+         return;
+      }
+    }
+
+    for (let i = 1; i < legs.length; i += 1) {
+      if (legs[i].date < legs[i - 1].date) {
+        setFormError("이동 경로의 날짜는 위에서 아래로 빠른 순서여야 합니다.");
+        return;
       }
     }
 
     let submittedLegs = legs.map((l, index) => {
         let legDate = new Date(l.date);
+        const legLocation = resolveLocation(l.destination, l.manualLocation);
         // Default time logic: 12:00 + index
         legDate.setHours(12 + index, 0, 0, 0); 
         
         return {
             city_name: l.destination,
-            arrival_date: legDate.toISOString()
+            arrival_date: legDate.toISOString(),
+            lat: legLocation.coords.lat,
+            lng: legLocation.coords.lng
         };
     });
 
@@ -177,7 +399,9 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
             
             submittedLegs.push({
                 city_name: startCity,
-                arrival_date: returnDate.toISOString()
+                arrival_date: returnDate.toISOString(),
+                lat: startLocation.coords.lat,
+                lng: startLocation.coords.lng
             });
         }
     }
@@ -191,6 +415,8 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
     const tripData = {
       title: tripTitle,
       start_city: startCity,
+      start_lat: startLocation.coords.lat,
+      start_lng: startLocation.coords.lng,
       start_date: tripStart.toISOString(),
       legs: submittedLegs 
     };
@@ -206,8 +432,8 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
         {/* Header */}
         <div className="odyssey-header">
           <div className="header-titles">
-            <h2>CREATE NEW ODYSSEY</h2>
-            <span className="sub-header">SIMPLIFIED FLIGHT PLANNING SYSTEM</span>
+            <h2>새 여행 만들기</h2>
+            <span className="sub-header">도시를 입력하면 지구본 위에 여정이 그려집니다</span>
           </div>
           <button className="close-btn-ghost" onClick={onClose}><X /></button>
         </div>
@@ -216,7 +442,7 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
         <div className="mission-title-wrapper">
              <input 
                 type="text" 
-                placeholder="ENTER MISSION TITLE..." 
+                placeholder="여행 이름 (예: 제주 가족 여행)" 
                 value={tripTitle}
                 onChange={e => setTripTitle(e.target.value)}
                 className="hud-input title-input"
@@ -229,69 +455,40 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
             
             {/* Type Selector */}
             <div className="config-group narrow">
-                <label className="section-label"><Globe size={14}/> FLIGHT MODE</label>
+                <label className="section-label"><Globe size={14}/> 여행 방식</label>
                 <div className="trip-type-toggle">
                     <button 
                     className={`toggle-btn ${tripType === 'one-way' ? 'active' : ''}`}
                     onClick={() => setTripType('one-way')}
                     >
-                    ONE WAY
+                    편도
                     </button>
                     <button 
                     className={`toggle-btn ${tripType === 'round' ? 'active' : ''}`}
                     onClick={() => setTripType('round')}
                     >
-                    ROUND TRIP
+                    왕복
                     </button>
                 </div>
             </div>
 
             {/* Origin Station */}
             <div className="config-group" style={{flex: 1.5}}>
-                <label className="section-label"><MapPin size={14}/> ORIGIN STATION</label>
-                <div className="hud-input-wrapper dropdown-container" onBlur={(e) => {
-                    // Check if the new focus target is inside this container
-                    if (!e.currentTarget.contains(e.relatedTarget)) {
-                        document.getElementById('city-chips-dropdown').style.display = 'none';
-                    }
-                }}>
-                    <MapPin size={16} className="input-field-icon" />
-                    <input 
-                        type="text" 
-                        placeholder="Start City (e.g. Seoul)" 
-                        value={startCity}
-                        onChange={e => setStartCity(e.target.value)}
-                        onFocus={() => {
-                            const dropdown = document.getElementById('city-chips-dropdown');
-                            if(dropdown) dropdown.style.display = 'flex';
-                        }}
-                        className={`hud-input ${!validateDate(startDate) ? 'invalid-input' : ''}`} // Assuming you might have class for invalid, but using warning below mainly
-                    />
-                    {CITY_COORDINATES[startCity.toLowerCase()] && (
-                        <div className="input-valid-indicator"><CheckCircle size={14} /></div>
-                    )}
-                    
-                    {/* Floating Chips Dropdown */}
-                    <div id="city-chips-dropdown" className="city-chips floating-chips">
-                        {FREQUENT_CITIES.map(city => (
-                            <button 
-                                key={city} 
-                                className="city-chip" 
-                                onClick={() => {
-                                    setStartCity(city);
-                                    document.getElementById('city-chips-dropdown').style.display = 'none';
-                                }}
-                            >
-                                {city}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <label className="section-label"><MapPin size={14}/> 출발 도시</label>
+                <LocationField
+                    value={startCity}
+                    onChange={setStartCity}
+                    manualLocation={startManualLocation}
+                    onManualChange={setStartManualLocation}
+                    dropdownId="city-chips-dropdown"
+                    placeholder="예: 서울, 제주, Jeju"
+                    hint="추천 도시를 선택하거나, 원하는 위치는 이름과 좌표로 직접 등록하세요."
+                />
             </div>
 
             {/* Dates */}
             <div className="config-group" style={{flex: 1.5}}>
-                 <label className="section-label"><Calendar size={14}/> MISSION TIMELINE</label>
+                 <label className="section-label"><Calendar size={14}/> 여행 기간</label>
                  <div className="date-group">
                     {/* Start Date */}
                     <div className="date-input-wrapper">
@@ -302,14 +499,14 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                         />
                         <input 
                             type="text" 
-                            placeholder="Start Date"
+                            placeholder="출발일"
                             value={startDate}
                             onChange={e => setStartDate(e.target.value)}
                             className="hud-input date-typing-input"
                         />
                         {!validateDate(startDate) && startDate.length > 0 && (
                             <div className="validation-warning">
-                                <AlertCircle size={12}/> YYYY-MM-DD format required
+                                <AlertCircle size={12}/> YYYY-MM-DD 형식
                             </div>
                         )}
                         <input 
@@ -333,14 +530,14 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                                 />
                                 <input 
                                     type="text" 
-                                    placeholder="Return Date"
+                                    placeholder="돌아오는 날"
                                     value={endDate}
                                     onChange={e => setEndDate(e.target.value)}
                                     className="hud-input date-typing-input"
                                 />
                                 {!validateDate(endDate) && endDate.length > 0 && (
                                     <div className="validation-warning">
-                                        <AlertCircle size={12}/> YYYY-MM-DD format required
+                                        <AlertCircle size={12}/> YYYY-MM-DD 형식
                                     </div>
                                 )}
                                 <input 
@@ -359,7 +556,7 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
 
         {/* 3. Itinerary / Legs */}
         <div className="section-label" style={{marginTop: '10px'}}>
-            <Plane size={16} className="section-icon" /> FLIGHT PATH / WAYPOINTS
+            <Plane size={16} className="section-icon" /> 이동 경로 / 경유지
         </div>
 
         <div className="legs-container">
@@ -369,59 +566,34 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                  
                  {/* Destination */}
                  <div className="leg-destination">
-                    <div className="hud-input-wrapper dropdown-container" onBlur={(e) => {
-                        if (!e.currentTarget.contains(e.relatedTarget)) {
-                            const el = document.getElementById(`leg-dropdown-${leg.id}`);
-                            if(el) el.style.display = 'none';
+                    <LocationField
+                        value={leg.destination}
+                        onChange={value => updateLeg(leg.id, 'destination', value)}
+                        manualLocation={leg.manualLocation}
+                        onManualChange={manualLocation => updateLegManualLocation(leg.id, manualLocation)}
+                        dropdownId={`leg-dropdown-${leg.id}`}
+                        placeholder="도착 도시 (예: 제주)"
+                        hint="국내 도시도 바로 입력할 수 있고, 목록에 없으면 좌표로 직접 확정할 수 있어요."
+                        icon={<Plane size={14} className="input-field-icon plane-field-icon" />}
+                        inputClassName="hud-input glass-input"
+                    />
+
+                    {(() => {
+                        const prevLocation = index === 0
+                            ? resolveLocation(startCity, startManualLocation)
+                            : resolveLocation(legs[index - 1].destination, legs[index - 1].manualLocation);
+                        const currentLocation = resolveLocation(leg.destination, leg.manualLocation);
+                        const dist = calculateDistanceByCoords(prevLocation.coords, currentLocation.coords);
+
+                        if (dist !== null) {
+                            return (
+                                <div className="distance-badge inline-distance-badge">
+                                    {dist.toLocaleString()} km
+                                </div>
+                            );
                         }
-                    }}>
-                        <Plane size={14} className="input-field-icon" style={{transform:'rotate(90deg)'}}/>
-                        <input 
-                            type="text" 
-                            placeholder="Destination City" 
-                            value={leg.destination}
-                            onChange={e => updateLeg(leg.id, 'destination', e.target.value)}
-                            onFocus={() => {
-                                const el = document.getElementById(`leg-dropdown-${leg.id}`);
-                                if(el) el.style.display = 'flex';
-                            }}
-                            className="hud-input glass-input"
-                        />
-                        
-                        {/* Distance Badge */}
-                        {(() => {
-                            // Calculate distance from previous point
-                            // If index 0, from startCity. If index > 0, from legs[index-1].destination
-                            const prevCity = index === 0 ? startCity : legs[index - 1].destination;
-                            const dist = calculateDistance(prevCity, leg.destination);
-                            
-                            if (dist !== null) {
-                                return (
-                                    <div className="distance-badge">
-                                        {dist.toLocaleString()} km
-                                    </div>
-                                );
-                            }
-                            return null;
-                        })()}
-                        
-                        {/* Floating Chips Dropdown for Leg */}
-                        <div id={`leg-dropdown-${leg.id}`} className="city-chips floating-chips">
-                            {FREQUENT_CITIES.map(city => (
-                                <button 
-                                    key={city} 
-                                    className="city-chip" 
-                                    onClick={() => {
-                                        updateLeg(leg.id, 'destination', city);
-                                        const el = document.getElementById(`leg-dropdown-${leg.id}`);
-                                        if(el) el.style.display = 'none';
-                                    }}
-                                >
-                                    {city}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                        return null;
+                    })()}
                  </div>
 
                  {/* Arrival Date */}
@@ -434,7 +606,7 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                         />
                         <input 
                            type="text"
-                           placeholder="Arrival Date"
+                           placeholder="이동일"
                            value={leg.date}
                            onChange={e => updateLeg(leg.id, 'date', e.target.value)}
                            className="hud-input glass-input date-typing-input"
@@ -442,7 +614,7 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                         />
                         {!validateDate(leg.date) && leg.date.length > 0 && (
                             <div className="validation-warning">
-                                <AlertCircle size={12}/> Invalid Format
+                                <AlertCircle size={12}/> 날짜 형식 확인
                             </div>
                         )}
                         <input 
@@ -461,7 +633,7 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
                     onClick={() => handleFileClick(leg.id)}
                  >
                     <Camera size={14} /> 
-                    <span>{leg.media && leg.media.length > 0 ? `${leg.media.length} Att.` : 'Media'}</span>
+                    <span>{leg.media && leg.media.length > 0 ? `${leg.media.length}개` : '사진'}</span>
                  </button>
                  <input 
                     type="file" 
@@ -473,21 +645,27 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
 
                  {/* Remove */}
                  {legs.length > 1 && (
-                     <button className="remove-leg-btn" onClick={() => handleRemoveLeg(leg.id)} title="Remove Waypoint">
+                     <button className="remove-leg-btn" onClick={() => handleRemoveLeg(leg.id)} title="경유지 삭제">
                          <X size={16}/>
                      </button>
                  )}
               </div>
             ))}
              <button className="add-leg-btn" onClick={handleAddLeg}>
-                <Plus size={14} style={{marginRight: '5px'}}/> ADD WAYPOINT
+                <Plus size={14} style={{marginRight: '5px'}}/> 경유지 추가
             </button>
         </div>
 
+        {formError && (
+            <div className="form-error-message">
+                <AlertCircle size={14} />
+                {formError}
+            </div>
+        )}
 
         {/* Footer */}
         <button className="initialize-btn" onClick={handleSubmit}>
-            INITIALIZE FLIGHT PATH
+            여행 경로 만들기
         </button>
 
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, Camera, DollarSign, Edit } from 'lucide-react';
+import { Calendar, MapPin, Camera, DollarSign, Edit, Route } from 'lucide-react';
 import './TripOverview.css';
 
 const TripOverview = ({ 
@@ -16,9 +16,18 @@ const TripOverview = ({
 }) => {
     const checkedCount = prepItems.filter(i => i.is_checked).length;
     const totalPrep = prepItems.length;
+    const prepPercent = totalPrep > 0 ? Math.round((checkedCount / totalPrep) * 100) : 0;
 
     return (
       <div className="overview-tab-content">
+         <div className="tab-context-row overview-context">
+            <div>
+               <span className="tab-kicker">OVERVIEW</span>
+               <h2>Trip command summary</h2>
+            </div>
+            <p>Scan the shape of the journey before jumping back into the globe, memories, or checklist.</p>
+         </div>
+
          <div className="overview-stats-row">
             <div className="stat-card-compact">
                <div className="stat-icon-small"><Calendar size={20}/></div>
@@ -64,9 +73,12 @@ const TripOverview = ({
            <div className="overview-main-column">
               <div className="overview-card glass-panel reflection-box-v2">
                  <div className="card-header-with-action">
-                    <h2 className="premium-header">Trip Reflection</h2>
+                    <div>
+                       <h2 className="premium-header">Trip Reflection</h2>
+                       <span className="card-subtitle">A short field note for what made this route memorable.</span>
+                    </div>
                     {!isEditing && (
-                        <button className="edit-icon-btn" onClick={() => setIsEditing(true)}>
+                        <button className="edit-icon-btn" aria-label="Edit trip reflection" onClick={() => setIsEditing(true)}>
                            <Edit size={16}/>
                         </button>
                     )}
@@ -77,13 +89,14 @@ const TripOverview = ({
                         <textarea 
                            className="reflection-editor"
                            value={editValues.note}
-                           placeholder="Describe your journey... The sights, the sounds, the feelings."
+                           aria-label="Trip reflection"
+                           placeholder="Describe the route, the atmosphere, the surprise you want to remember."
                            onChange={e => setEditValues({...editValues, note: e.target.value})}
                         />
                     ) : (
                         <div className="reflection-text-wrapper">
                            <p className={!editValues.note ? "empty-reflection" : "rich-reflection"}>
-                              {editValues.note || "Every journey tells a story. Click the edit icon to share your reflections on this adventure."}
+                              {editValues.note || "Add a reflection so this odyssey has a story beyond the route line."}
                            </p>
                         </div>
                     )}
@@ -106,16 +119,19 @@ const TripOverview = ({
                   <div className="sidebar-content-wrap">
                      <div className="sidebar-stats-row">
                         <span className="stat-label">{checkedCount}/{totalPrep} Items Ready</span>
-                        <span className="stat-val">{totalPrep > 0 ? Math.round((checkedCount/totalPrep)*100) : 0}%</span>
+                        <span className="stat-val">{prepPercent}%</span>
                      </div>
                      <div className="progress-bar-wrap thin">
-                        <div className="progress-fill" style={{width: `${totalPrep > 0 ? (checkedCount/totalPrep)*100 : 0}%`}}></div>
+                        <div className="progress-fill" style={{width: `${prepPercent}%`}}></div>
                      </div>
                   </div>
                </div>
 
               <div className="overview-card glass-panel route-card-v2">
-                 <h3 className="sidebar-label">YOUR ROUTE</h3>
+                 <div className="route-card-header">
+                    <h3 className="sidebar-label">YOUR ROUTE</h3>
+                    <span><Route size={13} /> {cities.length} stops</span>
+                 </div>
                  <div className="compact-route-list">
                     <div className="route-stop start">
                        <div className="stop-marker"></div>

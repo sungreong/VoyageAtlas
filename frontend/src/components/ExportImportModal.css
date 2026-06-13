@@ -115,3 +115,133 @@
   color: rgba(0, 255, 238, 0.7);
   text-transform: uppercase;
 }
+
+/* ── Import guide ── */
+.epm-import-guide {
+  border: 1px solid rgba(0, 255, 238, 0.16);
+  border-radius: 10px;
+  background: rgba(0, 255, 238, 0.028);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.epm-guide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.epm-guide-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(0, 255, 238, 0.62);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 1.2px;
+}
+
+.epm-guide-header h3 {
+  margin: 0;
+  color: rgba(240, 255, 255, 0.94);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.epm-copy-btn {
+  flex: 0 0 auto;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 255, 238, 0.28);
+  border-radius: 7px;
+  background: rgba(0, 255, 238, 0.08);
+  color: var(--neon-cyan);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.epm-copy-btn:hover,
+.epm-copy-btn.copied {
+  background: rgba(0, 255, 238, 0.18);
+  border-color: rgba(0, 255, 238, 0.55);
+  color: #fff;
+}
+
+.epm-rule-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  list-style: none;
+}
+
+.epm-rule-list li {
+  position: relative;
+  padding-left: 14px;
+  color: rgba(230, 245, 255, 0.66);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.epm-rule-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(0, 255, 238, 0.75);
+  box-shadow: 0 0 8px rgba(0, 255, 238, 0.35);
+}
+
+.epm-sample-code {
+  max-height: 230px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.34);
+  padding: 12px;
+  color: rgba(235, 255, 255, 0.86);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.epm-sample-code code {
+  font-family: 'Rajdhani', Consolas, monospace;
+}
+
+.epm-sample-code::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.epm-sample-code::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.epm-sample-code::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 238, 0.3);
+  border-radius: 5px;
+}
+
+@media (max-width: 980px) {
+  .epm-guide-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .epm-copy-btn {
+    justify-content: center;
+  }
+}

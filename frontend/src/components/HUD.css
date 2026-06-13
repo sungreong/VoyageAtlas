@@ -52,13 +52,56 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9rem;
-  color: var(--primary);
-  text-shadow: 0 0 10px var(--primary);
+  font-size: 0.82rem;
+  color: rgba(234, 246, 242, 0.84);
+  text-shadow: none;
 }
 
 .hud-item.primary {
   font-weight: bold;
-  border-bottom: 1px solid var(--primary);
+  color: #9ecfc6;
+  border-bottom: 1px solid rgba(158, 207, 198, 0.28);
   padding-bottom: 5px;
+}
+
+.hud-item.compact {
+  font-size: 0.72rem;
+  color: rgba(240, 247, 244, 0.66);
+}
+
+.route-status-card {
+  display: grid;
+  gap: 3px;
+  min-width: 154px;
+  padding: 10px 11px;
+  border: 1px solid rgba(158, 207, 198, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(158, 207, 198, 0.08), transparent),
+    rgba(7, 18, 24, 0.64);
+}
+
+.route-status-card.ship {
+  border-color: rgba(107, 231, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(107, 231, 255, 0.08), transparent),
+    rgba(7, 18, 24, 0.64);
+}
+
+.route-status-card span {
+  color: rgba(240, 247, 244, 0.58);
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.route-status-card strong {
+  color: #f7fbf5;
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+
+.route-status-card small {
+  color: #ffe2a8;
+  font-size: 0.7rem;
 }

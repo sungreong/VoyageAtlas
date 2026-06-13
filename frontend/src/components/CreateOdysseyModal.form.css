@@ -102,6 +102,50 @@
     padding-left: 38px;
 }
 
+.location-field {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.location-field .hud-input {
+    padding-right: 38px;
+}
+
+.plane-field-icon {
+    transform: translateY(-50%) rotate(90deg) !important;
+}
+
+.location-input-valid {
+    border-color: rgba(0, 243, 255, 0.55);
+}
+
+.location-input-invalid {
+    border-color: rgba(255, 77, 77, 0.7);
+    box-shadow: inset 0 -1px 0 rgba(255, 77, 77, 0.5);
+}
+
+.input-status-icon {
+    position: absolute;
+    right: 13px;
+    top: 21px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.input-status-icon.known,
+.input-status-icon.manual {
+    color: #00f3ff;
+}
+
+.input-status-icon.invalid {
+    color: #ff5c5c;
+}
+
 /* Date Inputs */
 .date-group {
     display: flex;
@@ -174,6 +218,15 @@
     animation: slideDown 0.2s ease-out;
 }
 
+.city-chip-hint {
+    flex: 0 0 100%;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.75rem;
+    line-height: 1.35;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 2px;
+}
+
 @keyframes slideDown {
     from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
@@ -197,6 +250,92 @@
     color: #fff;
     box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
     transform: translateY(-1px);
+}
+
+.location-confirm-chip,
+.location-warning-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    line-height: 1.2;
+}
+
+.location-confirm-chip {
+    width: fit-content;
+    max-width: 100%;
+    color: #9dfcff;
+    background: rgba(0, 243, 255, 0.09);
+    border: 1px solid rgba(0, 243, 255, 0.24);
+}
+
+.location-confirm-chip.manual {
+    color: #c8ffa7;
+    background: rgba(144, 255, 120, 0.08);
+    border-color: rgba(144, 255, 120, 0.25);
+}
+
+.location-confirm-chip span {
+    font-weight: 700;
+}
+
+.location-confirm-chip small {
+    color: rgba(255, 255, 255, 0.62);
+    white-space: nowrap;
+}
+
+.location-warning-chip {
+    color: #ffb1b1;
+    background: rgba(255, 77, 77, 0.08);
+    border: 1px solid rgba(255, 77, 77, 0.22);
+}
+
+.manual-location-toggle {
+    width: fit-content;
+    background: transparent;
+    border: none;
+    color: rgba(0, 243, 255, 0.78);
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.manual-location-toggle:hover {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.manual-location-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.manual-coordinate-input {
+    height: 34px;
+    background: rgba(0, 0, 0, 0.34);
+    border: 1px solid rgba(0, 243, 255, 0.18);
+    border-radius: 4px;
+    color: #fff;
+    padding: 0 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    outline: none;
+}
+
+.manual-coordinate-input:focus {
+    border-color: #00f3ff;
+    box-shadow: 0 0 8px rgba(0, 243, 255, 0.15);
+}
+
+.manual-coordinate-input.invalid {
+    border-color: rgba(255, 77, 77, 0.7);
 }
 
 /* Validation & Distance */
@@ -241,5 +380,26 @@
     color: #00f3ff;
     opacity: 0.7;
     pointer-events: none;
+}
+
+.inline-distance-badge {
+    position: static;
+    transform: none;
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 6px;
+}
+
+.form-error-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffb35c;
+    background: rgba(255, 179, 92, 0.08);
+    border: 1px solid rgba(255, 179, 92, 0.28);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
 }
 
