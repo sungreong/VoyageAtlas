@@ -2,8 +2,10 @@ import requests
 
 CITY_COORDS = {
     # 한국
-    "서울": (37.5665, 126.9780), "인천": (37.4563, 126.7052), "부산": (35.1796, 129.0756), "제주": (33.4996, 126.5312),
-    "Seoul": (37.5665, 126.9780), "Incheon": (37.4563, 126.7052), "Busan": (35.1796, 129.0756), "Jeju": (33.4996, 126.5312),
+    "서울": (37.5665, 126.9780), "인천": (37.4563, 126.7052), "부산": (35.1796, 129.0756),
+    "제주": (33.4996, 126.5312), "제주도": (33.4996, 126.5312), "제주시": (33.4996, 126.5312), "서귀포": (33.2541, 126.5601),
+    "Seoul": (37.5665, 126.9780), "Incheon": (37.4563, 126.7052), "Busan": (35.1796, 129.0756),
+    "Jeju": (33.4996, 126.5312), "Jeju-do": (33.4996, 126.5312), "Jeju City": (33.4996, 126.5312), "Seogwipo": (33.2541, 126.5601),
     # 일본
     "도쿄": (35.6762, 139.6503), "오사카": (34.6937, 135.5023), "후쿠오카": (33.5904, 130.4017), "삿포로": (43.0611, 141.3564),
     "Tokyo": (35.6762, 139.6503), "Osaka": (34.6937, 135.5023), "Fukuoka": (33.5904, 130.4017), "Sapporo": (43.0611, 141.3564),
@@ -19,18 +21,28 @@ CITY_COORDS = {
 }
 
 def geocode_city(city_name: str):
+    query = city_name.strip()
     # Try dictionary first
-    if city_name in CITY_COORDS:
-        return CITY_COORDS[city_name]
+    if query in CITY_COORDS:
+        return CITY_COORDS[query]
+
+    query_lower = query.lower()
+    for known_city, coords in CITY_COORDS.items():
+        if known_city.lower() == query_lower:
+            return coords
     
     # Fallback to OpenStreetMap (Nominatim) - No API key required for low volume
     try:
-        url = f"https://nominatim.openstreetmap.org/search?q={city_name}&format=json&limit=1"
-        response = requests.get(url, headers={'User-Agent': 'VoyageAtlas-PoC'})
+        url = "https://nominatim.openstreetmap.org/search"
+        response = requests.get(
+            url,
+            params={"q": query, "format": "json", "limit": 1},
+            headers={'User-Agent': 'VoyageAtlas-PoC'}
+        )
         data = response.json()
         if data:
             return float(data[0]['lat']), float(data[0]['lon'])
     except Exception as e:
-        print(f"Geocoding error for {city_name}: {e}")
+        print(f"Geocoding error for {query}: {e}")
     
     return None, None

@@ -34,6 +34,9 @@ pnpm-debug.log*
 # OS specific checks
 .directory
 .agent
+.agents/
+.codex/
 .claude
 CLAUDE.md
 ai_docs
+.codegraph/

@@ -33,6 +33,8 @@ router = APIRouter(prefix="/events", tags=["events"])
 class ItineraryLeg(BaseModel):
     city_name: str
     arrival_date: datetime
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 class EventMediaRead(BaseModel):
     id: int
@@ -77,6 +79,8 @@ class SimpleTripRequest(BaseModel):
     title: str
     start_city: str
     start_date: datetime
+    start_lat: Optional[float] = None
+    start_lng: Optional[float] = None
     legs: List[ItineraryLeg]
 
 @router.get("/trips", response_model=List[TripRead])
@@ -138,15 +142,21 @@ def read_events(session: Session = Depends(get_session)):
 async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(get_session)):
     # 1. Resolve all locations BEFORE starting DB transaction to avoid locking
     # Resolve Start City
-    start_lat, start_lng = geocode_city(req.start_city)
+    if req.start_lat is not None and req.start_lng is not None:
+        start_lat, start_lng = req.start_lat, req.start_lng
+    else:
+        start_lat, start_lng = geocode_city(req.start_city)
     if start_lat is None:
         raise HTTPException(status_code=400, detail=f"Could not resolve start city: {req.start_city}")
     
     legs_with_coords = []
     for leg in req.legs:
-        dest_lat, dest_lng = geocode_city(leg.city_name)
+        if leg.lat is not None and leg.lng is not None:
+            dest_lat, dest_lng = leg.lat, leg.lng
+        else:
+            dest_lat, dest_lng = geocode_city(leg.city_name)
         if dest_lat is None:
-            raise HTTPException(status_code=400, detail=f"Could not resolve leg city: {req.city_name}")
+            raise HTTPException(status_code=400, detail=f"Could not resolve leg city: {leg.city_name}")
         legs_with_coords.append((leg, dest_lat, dest_lng))
 
     # 2. Database Operations
@@ -157,7 +167,6 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
     
     # 2.2 Create Events for each leg
     event_ids = []
-    current_date = req.start_date
     current_city = req.start_city
     current_lat, current_lng = start_lat, start_lng
     
@@ -165,7 +174,7 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
         # Create Event
         evt = TravelEvent(
             trip_id=trip.id,
-            start_datetime=current_date,
+            start_datetime=leg.arrival_date,
             from_name=current_city,
             to_name=leg.city_name,
             from_lat=current_lat,
@@ -182,7 +191,6 @@ async def create_simple_trip(req: SimpleTripRequest, session: Session = Depends(
         # Update for next
         current_city = leg.city_name
         current_lat, current_lng = dest_lat, dest_lng
-        current_date = leg.arrival_date
     
     session.commit()
     return {"trip_id": trip.id, "event_ids": event_ids}
@@ -511,24 +519,53 @@ async def import_data(data: dict, session: Session = Depends(get_session)):
     import_count_trips = 0
     import_count_events = 0
     
-    for trip_data in data["trips"]:
+    for trip_index, trip_data in enumerate(data["trips"], start=1):
         # Create Trip
-        new_trip = Trip(title=trip_data.get("title", "Imported Trip"))
+        new_trip = Trip(title=trip_data.get("trip_title") or trip_data.get("title") or "Imported Trip")
         session.add(new_trip)
         session.flush() # Get Trip ID
         import_count_trips += 1
         
-        for e_data in trip_data.get("events", []):
+        event_items = trip_data.get("routes") or trip_data.get("events") or []
+        for event_index, e_data in enumerate(event_items, start=1):
+            from_name = e_data.get("from_name") or e_data.get("from")
+            to_name = e_data.get("to_name") or e_data.get("to")
+            start_datetime = e_data.get("start_datetime") or e_data.get("date")
+
+            required_fields = {
+                "from/from_name": from_name,
+                "to/to_name": to_name,
+                "from_lat": e_data.get("from_lat"),
+                "from_lng": e_data.get("from_lng"),
+                "to_lat": e_data.get("to_lat"),
+                "to_lng": e_data.get("to_lng"),
+                "date/start_datetime": start_datetime
+            }
+            missing = [name for name, value in required_fields.items() if value is None or value == ""]
+            if missing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Trip {trip_index}, route {event_index}: missing {', '.join(missing)}"
+                )
+
+            try:
+                parsed_datetime = datetime.fromisoformat(start_datetime)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Trip {trip_index}, route {event_index}: date must be ISO format, e.g. 2026-06-06T09:00:00"
+                )
+
             new_event = TravelEvent(
                 trip_id=new_trip.id,
-                title=e_data.get("title"),
-                from_name=e_data.get("from_name"),
-                to_name=e_data.get("to_name"),
+                title=e_data.get("title") or f"{from_name} to {to_name}",
+                from_name=from_name,
+                to_name=to_name,
                 from_lat=e_data.get("from_lat"),
                 from_lng=e_data.get("from_lng"),
                 to_lat=e_data.get("to_lat"),
                 to_lng=e_data.get("to_lng"),
-                start_datetime=datetime.fromisoformat(e_data.get("start_datetime")),
+                start_datetime=parsed_datetime,
                 transport=e_data.get("transport", "plane"),
                 note=e_data.get("note")
             )
