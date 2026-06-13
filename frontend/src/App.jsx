@@ -12,12 +12,15 @@ import ExportImportModal from './components/ExportImportModal';
 import ContinentStats from './components/ContinentStats';
 import GlobeJourneyInspector from './components/GlobeJourneyInspector';
 import SimulationExportPanel from './components/SimulationExportPanel';
+import StarshipTelemetry from './components/StarshipTelemetry';
+import GlobeThemeSettings from './components/GlobeThemeSettings';
 import './App.css';
 import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2, Globe, AlertTriangle, RefreshCcw, Lock, Unlock } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
 import './components/HUD.css';
 import { calculateDistance, formatDistance } from './utils';
 import { useSimulationRecorder } from './hooks/useSimulationRecorder';
+import { DEFAULT_GLOBE_VISUAL } from './config/globeThemes';
 
 const getEventDateKey = (dateString) => {
   if (!dateString) return '';
@@ -54,7 +57,8 @@ const getEventDateParts = (dateString) => {
 };
 
 const getEventTransport = (event, fallback = 'plane') => {
-  const raw = String(event?.transport || fallback || 'plane').toLowerCase();
+  const fallbackMode = String(fallback || 'plane').toLowerCase();
+  const raw = fallbackMode !== 'plane' ? fallbackMode : String(event?.transport || fallbackMode).toLowerCase();
   if (['plane', 'flight', 'air', 'airplane'].includes(raw)) return 'plane';
   if (['starship', 'rocket', 'spacecraft', 'spaceship'].includes(raw)) return 'starship';
   if (['ship', 'boat', 'ferry', 'cruise'].includes(raw)) return 'ship';
@@ -81,6 +85,9 @@ const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [vehicleMode, setVehicleMode] = useState('plane');
+  const [globeVisual, setGlobeVisual] = useState(DEFAULT_GLOBE_VISUAL);
+  const [starshipTelemetry, setStarshipTelemetry] = useState(null);
+  const [showGlobeSettings, setShowGlobeSettings] = useState(false);
   const [freeCameraMode, setFreeCameraMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [panoUrl, setPanoUrl] = useState(null);
@@ -341,6 +348,16 @@ const App = () => {
     setShowForm(true);
   };
 
+  const openBlankOdysseyModal = () => {
+    setSelectedCoords(null);
+    setShowForm(true);
+  };
+
+  const closeOdysseyModal = () => {
+    setShowForm(false);
+    setSelectedCoords(null);
+  };
+
   const handleMarkerClick = (city) => {
     setSelectedCity(city);
     // Find the first event for this city to center on the timeline
@@ -458,7 +475,7 @@ const App = () => {
       }
       
       const updatedEvents = await fetchEvents();
-      setShowForm(false);
+      closeOdysseyModal();
       
       // Set simulation to start of new trip
       if (eventIds.length > 0 && updatedEvents.length > 0) {
@@ -506,6 +523,65 @@ const App = () => {
     }
     return () => clearTimeout(timer);
   }, [isPlaying, currentVisibleIndex, speed, simulationRecorder.isRecording, visibleEvents]);
+
+  useEffect(() => {
+    if (!isPlaying || activeTransport !== 'starship' || !currentVisibleEvent) {
+      setStarshipTelemetry(null);
+      return undefined;
+    }
+
+    const duration = Math.max(5000, Math.min(activeLegDistance * 0.8, 12000)) / speed;
+    const fromLat = Number(currentVisibleEvent.from_lat);
+    const fromLng = Number(currentVisibleEvent.from_lng);
+    const toLat = Number(currentVisibleEvent.to_lat);
+    const toLng = Number(currentVisibleEvent.to_lng);
+    let lngDelta = toLng - fromLng;
+    if (lngDelta > 180) lngDelta -= 360;
+    if (lngDelta < -180) lngDelta += 360;
+    const latDelta = toLat - fromLat;
+    const headingRadians = Math.atan2(lngDelta, latDelta || 0.0001);
+    const startedAt = performance.now();
+    let rafId;
+    let lastFrame = 0;
+
+    const updateTelemetry = (now) => {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const arcLift = Math.sin(progress * Math.PI);
+      const boostCurve = 1 - Math.pow(1 - Math.min(progress / 0.42, 1), 2);
+      const entryCurve = progress > 0.72 ? (progress - 0.72) / 0.28 : 0;
+      const throttle = progress < 0.22
+        ? 0.92 + arcLift * 0.06
+        : progress < 0.42
+          ? 0.68 + arcLift * 0.08
+          : progress < 0.72
+            ? 0.28 + arcLift * 0.06
+            : 0.42 + (1 - entryCurve) * 0.18;
+      const phase = progress < 0.22 ? 'Boost ring' : progress < 0.42 ? 'Max-Q trim' : progress < 0.72 ? 'Coast core' : 'Entry trim';
+
+      if (now - lastFrame > 80 || progress >= 1) {
+        lastFrame = now;
+        const currentLat = fromLat + latDelta * progress;
+        const currentLng = ((fromLng + lngDelta * progress + 540) % 360) - 180;
+        setStarshipTelemetry({
+          progress,
+          currentLat,
+          currentLng,
+          headingRadians,
+          throttle,
+          phase,
+          speedKmh: (2200 + activeLegDistance * 0.1 + boostCurve * 5100 - entryCurve * 1700) * speed,
+          altitudeKm: 22 + arcLift * 70 + progress * 14,
+          lox: Math.max(0.08, 1 - progress * 0.76 - throttle * 0.05),
+          ch4: Math.max(0.1, 1 - progress * 0.64 - throttle * 0.04)
+        });
+      }
+
+      if (progress < 1) rafId = requestAnimationFrame(updateTelemetry);
+    };
+
+    rafId = requestAnimationFrame(updateTelemetry);
+    return () => cancelAnimationFrame(rafId);
+  }, [activeLegDistance, activeTransport, currentVisibleEvent?.id, currentVisibleIndex, isPlaying, speed]);
 
   const handleDashboardFocus = (lat, lng, altitude = 1000000, duration = 2000) => {
     setForcedCamera({ lat, lng, altitude, duration });
@@ -561,6 +637,8 @@ const App = () => {
           isPlaying={isPlaying}
           speed={speed}
           vehicleMode={vehicleMode}
+          globeVisual={globeVisual}
+          recordingActive={simulationRecorder.isRecording}
           freeCameraMode={freeCameraMode}
           onGlobeClick={handleGlobeClick}
           onMarkerClick={handleMarkerClick}
@@ -581,7 +659,7 @@ const App = () => {
           placeOptions={placeScopeOptions}
           onFilterChange={handleGlobeFilterChange}
           onFilterReset={resetGlobeFilter}
-          onAddTravel={() => setShowForm(true)}
+          onAddTravel={openBlankOdysseyModal}
         />
 
        <SimulationExportPanel
@@ -590,6 +668,11 @@ const App = () => {
           recorder={simulationRecorder}
           onStart={simulationRecorder.startRecording}
           onCancel={simulationRecorder.cancelRecording}
+        />
+
+       <StarshipTelemetry
+          visible={isPlaying && activeTransport === 'starship' && !simulationRecorder.isRecording}
+          telemetry={starshipTelemetry}
         />
 
        {dataError && (
@@ -643,7 +726,13 @@ const App = () => {
              </div>
            </>
          )}
-         <button className="add-toggle-btn" onClick={() => setShowForm(!showForm)}>
+         <button className="add-toggle-btn" onClick={() => {
+           if (showForm) {
+             closeOdysseyModal();
+           } else {
+             openBlankOdysseyModal();
+           }
+         }}>
            <Plus /> {showForm ? 'CLOSE' : 'ADD TRAVEL'}
          </button>
          <button className="log-btn" onClick={() => setShowManager(true)}>
@@ -681,11 +770,17 @@ const App = () => {
            <Globe size={20} />
            <span className="btn-label">STATS</span>
          </button>
+         <GlobeThemeSettings
+           open={showGlobeSettings}
+           value={globeVisual}
+           onChange={setGlobeVisual}
+           onOpenChange={setShowGlobeSettings}
+         />
        </div>
        
        {showForm && (
          <CreateOdysseyModal 
-           onClose={() => setShowForm(false)}
+           onClose={closeOdysseyModal}
            onAddSimpleTrip={handleAddSimpleTrip}
            selectedCoords={selectedCoords}
          />
@@ -760,7 +855,7 @@ const App = () => {
       )}
 
       {/* Flight Route Display */}
-      {isPlaying && visibleEvents.length > 0 && currentVisibleEvent && (
+      {isPlaying && !simulationRecorder.isRecording && visibleEvents.length > 0 && currentVisibleEvent && (
         <div
           key={currentVisibleEvent.id ?? currentVisibleIndex}
           className="flight-route-display"

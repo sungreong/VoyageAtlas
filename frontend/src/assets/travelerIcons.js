@@ -1,4 +1,7 @@
-// Traveler marker assets sourced from Game Icons via Iconify.
+import starshipSpacexUrl from './starship-spacex.svg';
+
+// Traveler marker assets sourced from Game Icons via Iconify, except the
+// Starship marker, which uses a provided SVG tuned for small globe UI.
 // License: CC BY 3.0, https://github.com/game-icons/icons/blob/master/license.txt
 // Selected paths are embedded to avoid shipping the full icon set in the app bundle.
 export const TRAVELER_ICONS = {
@@ -18,8 +21,11 @@ export const TRAVELER_ICONS = {
     label: 'Starship',
     viewBox: 512,
     renderMode: 'directional',
-    scale: 6.3,
-    rotation: Math.PI / 2,
+    scale: 8.4,
+    textureScale: 0.9,
+    imageAspect: 850 / 274,
+    imageSrc: starshipSpacexUrl,
+    rotation: 0,
     headingOffset: 0,
     primary: '#f7fbff',
     accent: '#9ecfc6',
