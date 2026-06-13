@@ -185,7 +185,11 @@ export const MARKER_STYLE_PROFILES = [
 export const DEFAULT_GLOBE_VISUAL = {
   themeId: 'atlas',
   routeStyleId: 'legible',
-  markerStyleId: 'pinpoint'
+  markerStyleId: 'pinpoint',
+  showWorldHighlights: true,
+  worldHighlightMode: 'global',
+  worldHighlightLimit: 999,
+  worldHighlightCountryLimit: 5
 };
 
 export const getGlobeTheme = (themeId) =>

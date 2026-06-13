@@ -3,6 +3,10 @@ import { Download, Gauge, Loader2, RotateCcw, Square, Video } from 'lucide-react
 import './SimulationExportPanel.css';
 
 const EXPORT_SPEEDS = [0.5, 1, 2, 4];
+const EXPORT_VIEW_MODES = [
+  { value: 'globe', label: 'Globe' },
+  { value: 'aerial', label: 'Aerial' }
+];
 
 const formatBytes = (value) => {
   const bytes = Number(value) || 0;
@@ -23,6 +27,8 @@ const SimulationExportPanel = ({
   eventCount,
   filterSummary,
   recorder,
+  viewMode,
+  onViewModeChange,
   onStart,
   onCancel
 }) => {
@@ -55,6 +61,20 @@ const SimulationExportPanel = ({
           >
             {EXPORT_SPEEDS.map(value => (
               <option key={value} value={value}>{value}x</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="export-view-control" htmlFor="simulation-export-view">
+          <Video size={14} />
+          <select
+            id="simulation-export-view"
+            value={viewMode}
+            disabled={isRecording}
+            onChange={(event) => onViewModeChange(event.target.value)}
+          >
+            {EXPORT_VIEW_MODES.map(mode => (
+              <option key={mode.value} value={mode.value}>{mode.label}</option>
             ))}
           </select>
         </label>

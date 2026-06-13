@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from api.events import router as events_router
+from api.geocode import router as geocode_router
 from api.importer import router as importer_router
 from database import create_db_and_tables
 from init_storage import init_minio
@@ -48,6 +49,7 @@ app.add_middleware(
 )
 
 app.include_router(events_router)
+app.include_router(geocode_router)
 app.include_router(importer_router)
 
 @app.get("/")

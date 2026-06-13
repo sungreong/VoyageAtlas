@@ -403,3 +403,32 @@
     font-size: 0.85rem;
 }
 
+.selected-location-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.selected-location-notice.loading {
+    color: #9dfcff;
+    background: rgba(0, 243, 255, 0.08);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+}
+
+.selected-location-notice.success {
+    color: #c8ffa7;
+    background: rgba(144, 255, 120, 0.08);
+    border: 1px solid rgba(144, 255, 120, 0.22);
+}
+
+.selected-location-notice.error {
+    color: #ffcf87;
+    background: rgba(255, 179, 92, 0.08);
+    border: 1px solid rgba(255, 179, 92, 0.25);
+}

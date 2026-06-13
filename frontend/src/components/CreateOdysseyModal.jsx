@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { X, Calendar, MapPin, Plus, Camera, ArrowRight, Plane, Globe, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import apiClient from '../api/client';
 import './CreateOdysseyModal.layout.css';
 import './CreateOdysseyModal.form.css';
 import './CreateOdysseyModal.itinerary.css'; 
@@ -57,6 +58,12 @@ const CITY_COORDINATES = {
 };
 
 const createManualLocation = () => ({ lat: '', lng: '', expanded: false });
+const createManualLocationFromCoords = (coords) => ({
+    lat: Number(coords.lat).toFixed(6),
+    lng: Number(coords.lng).toFixed(6),
+    expanded: false
+});
+const createSelectedLocationLabel = (coords) => `선택한 위치 (${Number(coords.lat).toFixed(3)}, ${Number(coords.lng).toFixed(3)})`;
 
 const getKnownCityCoords = (city) => {
     if (!city) return null;
@@ -239,19 +246,86 @@ const validateDate = (dateStr) => {
     return regex.test(dateStr);
 };
 
-const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
+const CreateOdysseyModal = ({ onClose, onAddSimpleTrip, selectedCoords }) => {
   const [tripType, setTripType] = useState('round'); // 'one-way' | 'round'
   const [startCity, setStartCity] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState(''); // New: Explicit End Date for Round Trip
   const [tripTitle, setTripTitle] = useState('');
   const [formError, setFormError] = useState('');
+  const [selectedLocationStatus, setSelectedLocationStatus] = useState({ state: 'idle', message: '' });
   const [startManualLocation, setStartManualLocation] = useState(createManualLocation());
   
   // Leg structure: { id: 1, destination: '', date: '', media: [] }
   const [legs, setLegs] = useState([
     { id: 1, destination: '', date: '', media: [], manualLocation: createManualLocation() }
   ]);
+
+  useEffect(() => {
+    if (!selectedCoords) {
+      setSelectedLocationStatus({ state: 'idle', message: '' });
+      return undefined;
+    }
+
+    const lat = Number(selectedCoords.lat);
+    const lng = Number(selectedCoords.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+
+    const fallbackLabel = createSelectedLocationLabel({ lat, lng });
+    const manualLocation = createManualLocationFromCoords({ lat, lng });
+    const controller = new AbortController();
+
+    setSelectedLocationStatus({
+      state: 'loading',
+      message: `선택한 좌표를 가장 가까운 지역으로 확인 중입니다 · ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+    });
+
+    setLegs(prev => prev.map((leg, index) => (
+      index === 0
+        ? { ...leg, destination: fallbackLabel, manualLocation }
+        : leg
+    )));
+
+    apiClient.get('/geocode', {
+      params: { lat, lng },
+      signal: controller.signal
+    })
+      .then(({ data }) => {
+        const locationName = data?.name || data?.city || fallbackLabel;
+        const mappedLat = Number(data?.lat);
+        const mappedLng = Number(data?.lng);
+        const mappedManualLocation = Number.isFinite(mappedLat) && Number.isFinite(mappedLng)
+          ? createManualLocationFromCoords({ lat: mappedLat, lng: mappedLng })
+          : manualLocation;
+
+        setLegs(prev => prev.map((leg, index) => (
+          index === 0
+            ? { ...leg, destination: locationName, manualLocation: mappedManualLocation }
+            : leg
+        )));
+
+        const distanceCopy = data?.source === 'nearest_known' && data?.distance_km
+          ? ` · 알려진 도시 기준 약 ${Math.round(data.distance_km).toLocaleString()} km`
+          : '';
+        const representativeCopy = data?.source === 'country_representative'
+          ? ' · 대표 도시 좌표로 매핑'
+          : '';
+
+        setSelectedLocationStatus({
+          state: 'success',
+          message: `지도에서 선택한 위치를 도착지로 설정했습니다: ${locationName}${representativeCopy}${distanceCopy}`
+        });
+      })
+      .catch(error => {
+        if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') return;
+        setSelectedLocationStatus({
+          state: 'error',
+          message: `지역명 확인은 실패했지만 선택한 좌표는 도착지로 저장됩니다: ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+        });
+      });
+
+    return () => controller.abort();
+  }, [selectedCoords]);
 
   const fileInputRefs = useRef({});
   const startDatePickerRef = useRef(null);
@@ -558,6 +632,13 @@ const CreateOdysseyModal = ({ onClose, onAddSimpleTrip }) => {
         <div className="section-label" style={{marginTop: '10px'}}>
             <Plane size={16} className="section-icon" /> 이동 경로 / 경유지
         </div>
+
+        {selectedLocationStatus.state !== 'idle' && (
+            <div className={`selected-location-notice ${selectedLocationStatus.state}`}>
+                {selectedLocationStatus.state === 'success' ? <CheckCircle size={14} /> : <MapPin size={14} />}
+                <span>{selectedLocationStatus.message}</span>
+            </div>
+        )}
 
         <div className="legs-container">
             {legs.map((leg, index) => (

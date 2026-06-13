@@ -9,6 +9,8 @@ import {
   getRouteStyle
 } from '../config/globeThemes';
 import { createVehicleObject, updateVehicleObject } from '../utils/globeVehicleObjects';
+import { buildVisitedDestinationIndex, getWorldHighlightMarkers } from '../utils/worldHighlightLayer';
+import { buildVisitedCityClusters } from '../utils/globeCityClusters';
 import {
   createScreenHudSprite,
   disposeScreenHudSprite,
@@ -26,9 +28,10 @@ import {
   calculateCameraAltitude
 } from '../utils/flightPhysics';
 
-const OVERVIEW_LABEL_LIMIT = 12;
+const OVERVIEW_LABEL_LIMIT = 48;
 const SIMULATION_FRAME_INTERVAL_MS = 1000 / 30;
 const SUN_UPDATE_INTERVAL_MS = 250;
+const AERIAL_LANDING_APPROACH_KM = 180;
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
 
@@ -87,6 +90,27 @@ const formatRouteDate = (dateValue) => {
     year: 'numeric'
   }).format(date);
 };
+
+const getAerialCameraAltitude = (distance, progress = 0.5, landingProgress = 0) => {
+  const cruiseAltitude = distance < 350
+    ? 0.42
+    : distance < 1200
+      ? 0.52
+      : distance < 3000
+        ? 0.68
+        : 0.86;
+  const landingAltitude = distance < 350
+    ? 0.32
+    : distance < 1200
+      ? 0.38
+      : distance < 3000
+        ? 0.5
+        : 0.64;
+  const terminalLift = progress < 0.12 || progress > 0.88 ? 0.08 : 0;
+  return cruiseAltitude + terminalLift + (landingAltitude - cruiseAltitude) * landingProgress;
+};
+
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
 const applyRouteStyle = (visual, active, routeStyle) => ({
   ...visual,
@@ -233,7 +257,7 @@ const calculateSunPosition = (date) => {
   return { lat, lng };
 };
 
-const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, speed, vehicleMode, freeCameraMode, forcedCamera, globeVisual, recordingActive }, ref) => {
+const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, onWorldHighlightClick, speed, vehicleMode, freeCameraMode, forcedCamera, globeVisual, recordingActive, recordingViewMode }, ref) => {
   const globeEl = useRef();
   const cameraTimerRefs = useRef([]);
   const animationFrameRef = useRef(null);
@@ -279,23 +303,7 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
   const isFlightFocusMode = isPlaying && Boolean(currentEvent);
 
   const cityClusters = useMemo(() => {
-    const clusters = {};
-    events.forEach(e => {
-      if (!Number.isFinite(Number(e.to_lat)) || !Number.isFinite(Number(e.to_lng))) return;
-      const key = e.to_name;
-      if (!clusters[key]) {
-        clusters[key] = { 
-          name: e.to_name, 
-          lat: Number(e.to_lat),
-          lng: Number(e.to_lng),
-          count: 0,
-          events: []
-        };
-      }
-      clusters[key].count += 1;
-      clusters[key].events.push(e);
-    });
-    return Object.values(clusters);
+    return buildVisitedCityClusters(events);
   }, [events]);
 
   const arcsData = useMemo(() => {
@@ -369,7 +377,7 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         events: cluster?.events ?? []
       };
     });
-  }, [cityClusters, focusRouteCities, isFlightFocusMode]);
+  }, [cityClusters, currentEvent?.from_name, currentEvent?.to_name, focusRouteCities, isFlightFocusMode]);
 
   const labelsData = useMemo(() => {
     return labelCityMarkers
@@ -387,6 +395,17 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         };
       });
   }, [labelCityMarkers, currentEvent, isFlightFocusMode, markerVisualKey]);
+
+  const visitedDestinationIndex = useMemo(() => buildVisitedDestinationIndex(events), [events]);
+
+  const worldHighlightMarkers = useMemo(() => {
+    return getWorldHighlightMarkers({
+      isFlightFocusMode,
+      markerStyle,
+      visualConfig,
+      visitedDestinationIndex
+    });
+  }, [isFlightFocusMode, markerStyle, visitedDestinationIndex, visualConfig]);
 
   const recordingHudData = useMemo(() => {
     if (!recordingActive || !isFlightFocusMode || !currentEvent) return null;
@@ -456,17 +475,18 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
     const text = label.label || label.name || '';
     const active = Boolean(label.active);
     const focusMode = Boolean(label.focusMode);
+    const worldHighlight = label.type === 'world-highlight';
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    const fontSize = Math.round((active ? 23 : focusMode ? 17 : 18) * markerStyle.labelScale);
-    const paddingX = active ? 18 : focusMode ? 12 : 13;
-    const paddingY = active ? 10 : focusMode ? 7 : 8;
-    const dotSize = active ? 14 : focusMode ? 8 : 10;
+    const fontSize = Math.round((worldHighlight ? focusMode ? 12 : 13 : active ? 23 : focusMode ? 17 : 18) * markerStyle.labelScale);
+    const paddingX = worldHighlight ? 10 : active ? 18 : focusMode ? 12 : 13;
+    const paddingY = worldHighlight ? 6 : active ? 10 : focusMode ? 7 : 8;
+    const dotSize = worldHighlight ? 7 : active ? 14 : focusMode ? 8 : 10;
 
     const measureCanvas = document.createElement('canvas');
     const measureCtx = measureCanvas.getContext('2d');
     measureCtx.font = `700 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
     const textWidth = Math.ceil(measureCtx.measureText(text).width);
-    const width = Math.max(72, textWidth + paddingX * 2 + dotSize + 10);
+    const width = Math.max(worldHighlight ? 68 : 72, textWidth + paddingX * 2 + dotSize + (worldHighlight ? 8 : 10));
     const height = fontSize + paddingY * 2;
 
     const canvas = document.createElement('canvas');
@@ -478,20 +498,25 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
     ctx.font = `700 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
     ctx.textBaseline = 'middle';
 
-    ctx.fillStyle = active ? globeTheme.activeLabelFill : globeTheme.labelFill;
-    ctx.strokeStyle = active ? globeTheme.activeLabelStroke : globeTheme.labelStroke;
+    ctx.fillStyle = worldHighlight ? 'rgba(24, 22, 15, 0.48)' : active ? globeTheme.activeLabelFill : globeTheme.labelFill;
+    ctx.strokeStyle = worldHighlight ? 'rgba(255, 226, 168, 0.38)' : active ? globeTheme.activeLabelStroke : globeTheme.labelStroke;
     ctx.lineWidth = 2;
+    if (worldHighlight) ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.roundRect(1, 1, width - 2, height - 2, 9);
+    ctx.roundRect(1, 1, width - 2, height - 2, worldHighlight ? 12 : 9);
     ctx.fill();
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    ctx.fillStyle = active ? globeTheme.activeMarker : globeTheme.marker;
+    ctx.fillStyle = worldHighlight ? 'rgba(255, 226, 168, 0.22)' : active ? globeTheme.activeMarker : globeTheme.marker;
+    ctx.strokeStyle = worldHighlight ? 'rgba(255, 226, 168, 0.82)' : ctx.fillStyle;
+    ctx.lineWidth = worldHighlight ? 2 : 1;
     ctx.beginPath();
     ctx.arc(paddingX, height / 2, dotSize / 2, 0, Math.PI * 2);
-    ctx.fill();
+    if (worldHighlight) ctx.stroke();
+    else ctx.fill();
 
-    ctx.fillStyle = active ? globeTheme.activeLabelText : globeTheme.labelText;
+    ctx.fillStyle = worldHighlight ? 'rgba(255, 244, 205, 0.78)' : active ? globeTheme.activeLabelText : globeTheme.labelText;
     ctx.fillText(text, paddingX + dotSize + 9, height / 2 + 1);
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -501,15 +526,15 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
     const material = new THREE.SpriteMaterial({
       map: texture,
       transparent: true,
-      depthTest: !(active || focusMode),
+      depthTest: true,
       depthWrite: false
     });
 
     const sprite = new THREE.Sprite(material);
-    const spriteHeight = (active ? 3.9 : focusMode ? 2.35 : 2.55) * markerStyle.labelScale;
+    const spriteHeight = (worldHighlight ? focusMode ? 1.58 : 1.75 : active ? 3.9 : focusMode ? 2.35 : 2.55) * markerStyle.labelScale;
     sprite.scale.set((width / height) * spriteHeight, spriteHeight, 1);
-    sprite.position.copy(toGlobeVector(label.lat, label.lng, active ? 0.035 : focusMode ? 0.012 : 0.018, globeRadius));
-    sprite.renderOrder = active ? 18 : focusMode ? 16 : 4;
+    sprite.position.copy(toGlobeVector(label.lat, label.lng, worldHighlight ? 0.024 : active ? 0.035 : focusMode ? 0.012 : 0.018, globeRadius));
+    sprite.renderOrder = worldHighlight ? 5 : active ? 18 : focusMode ? 16 : 4;
     sprite.userData = label;
 
     return sprite;
@@ -530,7 +555,7 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
       return;
     }
 
-    if (obj.userData?.visualKey !== item.visualKey) {
+    if (obj.userData?.visualKey !== item.visualKey || obj.userData?.label !== item.label) {
       const fresh = createLabelSprite(item, globeRadius);
       obj.material?.map?.dispose(); obj.material?.dispose();
       obj.material = fresh.material; obj.scale.copy(fresh.scale); obj.renderOrder = fresh.renderOrder;
@@ -540,11 +565,26 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
   }, [createLabelSprite, toGlobeVector]);
 
   const customLayerData = useMemo(() => {
+    const remainingAerialKm = airplanePos && currentEvent
+      ? getGreatCircleDistance(
+          Number(airplanePos.lat),
+          Number(airplanePos.lng),
+          Number(currentEvent.to_lat),
+          Number(currentEvent.to_lng)
+        )
+      : Infinity;
+    const landingProgress = recordingActive && recordingViewMode === 'aerial'
+      ? Math.max(
+          clamp01((Number(airplanePos?.progress || 0) - 0.68) / 0.32),
+          clamp01(1 - (remainingAerialKm / AERIAL_LANDING_APPROACH_KM))
+        )
+      : 0;
     const vehicleData = airplanePos
       ? [{
           ...airplanePos,
           lat: Number(airplanePos.lat),
           lng: Number(airplanePos.lng),
+          landingProgress,
           vehicleMode: normalizeTransport(null, vehicleMode),
           routeFromName: currentEvent?.from_name,
           routeToName: currentEvent?.to_name,
@@ -553,11 +593,11 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         }]
       : [];
 
-    return [...labelsData, ...vehicleData];
-  }, [airplanePos, currentEvent, labelsData, routeStyle.vehicleLift, vehicleMode]);
+    return [...worldHighlightMarkers, ...labelsData, ...vehicleData];
+  }, [airplanePos, currentEvent, labelsData, recordingActive, recordingViewMode, routeStyle.vehicleLift, vehicleMode, worldHighlightMarkers]);
 
   const ringsData = useMemo(() => {
-    return cityClusters.map(c => {
+    const cityRings = cityClusters.map(c => {
       const active = currentEvent?.to_name === c.name;
       const currentLegVisual = getTransportVisual(currentEvent, active, isFlightFocusMode, vehicleMode, visualConfig);
 
@@ -571,7 +611,16 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         visual: currentLegVisual
       };
     });
-  }, [cityClusters, currentEvent, isFlightFocusMode, vehicleMode, visualConfig]);
+
+    const worldHighlightRings = worldHighlightMarkers.map(destination => ({
+      lat: destination.lat,
+      lng: destination.lng,
+      focusMode: isFlightFocusMode,
+      worldHighlight: true
+    }));
+
+    return [...worldHighlightRings, ...cityRings];
+  }, [cityClusters, currentEvent, isFlightFocusMode, vehicleMode, visualConfig, worldHighlightMarkers]);
 
   const applySunPosition = useCallback((sunPosition) => {
     if (!sunPosition || !globeEl.current) return;
@@ -647,6 +696,7 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
       // Scale duration with distance - longer flights take more time to visualize
       const baseDuration = Math.max(5000, Math.min(distance * 0.8, 12000));
       const duration = baseDuration / speed;
+      const useAerialRecordingView = recordingActive && recordingViewMode === 'aerial' && !freeCameraMode;
 
       // Base Date from Event
       const startDate = current.start_datetime ? new Date(current.start_datetime) : new Date();
@@ -738,33 +788,56 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         const midpointLng = (fromLng + toLng) / 2;
         const midpointAlt = initialCameraAlt * 1.15; // Slightly zoom out at midpoint to see full arc
 
-        // 3-phase camera movement: from → midpoint → to
-        // Phase 1: Move to origin city
-        globeEl.current.pointOfView({
-          lat: fromLat,
-          lng: fromLng,
-          altitude: initialCameraAlt
-        }, 800);
+        if (useAerialRecordingView) {
+          const approachAnchor = interpolateRoute(0.68);
+          const approachAltitude = getAerialCameraAltitude(distance, 0.45, 0) + 0.16;
+          const landingAltitude = getAerialCameraAltitude(distance, 0.92, 1);
+          const settleDelay = Math.min(1100, Math.max(520, duration * 0.16));
+          const landingDuration = Math.min(3600, Math.max(1800, duration * 0.52));
 
-        // Phase 2: Pan to arc midpoint (shows full flight path)
-        const midpointTimer = setTimeout(() => {
-          globeEl.current?.pointOfView({
-            lat: midpointLat,
-            lng: midpointLng,
-            altitude: midpointAlt
-          }, 2000); // 2 seconds to reach midpoint
-        }, 1000);
-        cameraTimerRefs.current.push(midpointTimer);
+          globeEl.current.pointOfView({
+            lat: approachAnchor.lat,
+            lng: approachAnchor.lng,
+            altitude: approachAltitude
+          }, 760);
 
-        // Phase 3: Continue to destination
-        const destinationTimer = setTimeout(() => {
-          globeEl.current?.pointOfView({
-            lat: toLat,
-            lng: toLng,
-            altitude: finalCameraAlt
-          }, 2000); // 2 seconds from midpoint to destination
-        }, 3000); // Start after reaching midpoint
-        cameraTimerRefs.current.push(destinationTimer);
+          const landingCameraTimer = setTimeout(() => {
+            globeEl.current?.pointOfView({
+              lat: toLat,
+              lng: toLng,
+              altitude: landingAltitude
+            }, landingDuration);
+          }, settleDelay);
+          cameraTimerRefs.current.push(landingCameraTimer);
+        } else {
+          // 3-phase camera movement: from → midpoint → to
+          // Phase 1: Move to origin city
+          globeEl.current.pointOfView({
+            lat: fromLat,
+            lng: fromLng,
+            altitude: initialCameraAlt
+          }, 800);
+
+          // Phase 2: Pan to arc midpoint (shows full flight path)
+          const midpointTimer = setTimeout(() => {
+            globeEl.current?.pointOfView({
+              lat: midpointLat,
+              lng: midpointLng,
+              altitude: midpointAlt
+            }, 2000); // 2 seconds to reach midpoint
+          }, 1000);
+          cameraTimerRefs.current.push(midpointTimer);
+
+          // Phase 3: Continue to destination
+          const destinationTimer = setTimeout(() => {
+            globeEl.current?.pointOfView({
+              lat: toLat,
+              lng: toLng,
+              altitude: finalCameraAlt
+            }, 2000); // 2 seconds from midpoint to destination
+          }, 3000); // Start after reaching midpoint
+          cameraTimerRefs.current.push(destinationTimer);
+        }
       }
       // If freeCameraMode === true, camera stays wherever user positioned it
     } else {
@@ -779,7 +852,7 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         animationFrameRef.current = null;
       }
     };
-  }, [currentEventIndex, isPlaying, speed, events, currentEvent, freeCameraMode, applySunPosition]); // Added speed, events, and freeCameraMode dependency
+  }, [currentEventIndex, isPlaying, speed, events, currentEvent, freeCameraMode, applySunPosition, recordingActive, recordingViewMode]); // Added speed, events, and freeCameraMode dependency
 
   // Smooth transition when exiting free camera mode
   useEffect(() => {
@@ -912,17 +985,21 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
       arcAltitude={d => d.visual?.altitude ?? 0.1}
       arcStroke={d => d.visual?.stroke ?? 0.35}
       ringsData={ringsData}
-      ringColor={d => d.active ? d.visual?.ringColor || globeTheme.activeMarker : d.focusMode ? hexToRgba(globeTheme.marker, 0.24) : hexToRgba(globeTheme.marker, 0.58)}
-      ringMaxRadius={d => (d.active ? d.visual?.ringMaxRadius || 3.2 : d.focusMode ? 0.65 : 1.85) * (d.active ? markerStyle.ringRadiusScale : markerStyle.inactiveRingScale)}
-      ringPropagationSpeed={d => (d.active ? d.visual?.ringSpeed || 4 : d.focusMode ? 1.1 : 2) * markerStyle.ringSpeedScale}
-      ringRepeatPeriod={d => d.active ? d.visual?.ringPeriod || 900 : d.focusMode ? 2700 : 2100}
+      ringColor={d => d.worldHighlight ? `rgba(255, 226, 168, ${d.focusMode ? 0.16 : 0.34})` : d.active ? d.visual?.ringColor || globeTheme.activeMarker : d.focusMode ? hexToRgba(globeTheme.marker, 0.24) : hexToRgba(globeTheme.marker, 0.58)}
+      ringMaxRadius={d => d.worldHighlight ? (d.focusMode ? 0.52 : 0.92) * markerStyle.inactiveRingScale : (d.active ? d.visual?.ringMaxRadius || 3.2 : d.focusMode ? 0.65 : 1.85) * (d.active ? markerStyle.ringRadiusScale : markerStyle.inactiveRingScale)}
+      ringPropagationSpeed={d => d.worldHighlight ? 0.62 * markerStyle.ringSpeedScale : (d.active ? d.visual?.ringSpeed || 4 : d.focusMode ? 1.1 : 2) * markerStyle.ringSpeedScale}
+      ringRepeatPeriod={d => d.worldHighlight ? 3600 : d.active ? d.visual?.ringPeriod || 900 : d.focusMode ? 2700 : 2100}
 
       customLayerData={customLayerData}
       customThreeObject={createGlobeSprite}
       customThreeObjectUpdate={updateGlobeSprite}
       onCustomLayerClick={(obj) => {
         const data = obj.userData || obj;
-        if (data.type !== 'vehicle') onMarkerClick && onMarkerClick(data);
+        if (data.type === 'world-highlight') {
+          onWorldHighlightClick && onWorldHighlightClick(data);
+        } else if (data.type !== 'vehicle') {
+          onMarkerClick && onMarkerClick(data);
+        }
       }}
 
       onGlobeClick={({ lat, lng }) => onGlobeClick && onGlobeClick(lat, lng)}

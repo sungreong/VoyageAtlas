@@ -14,6 +14,7 @@ import GlobeJourneyInspector from './components/GlobeJourneyInspector';
 import SimulationExportPanel from './components/SimulationExportPanel';
 import StarshipTelemetry from './components/StarshipTelemetry';
 import GlobeThemeSettings from './components/GlobeThemeSettings';
+import ContinentNavigator from './components/ContinentNavigator';
 import './App.css';
 import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2, Globe, AlertTriangle, RefreshCcw, Lock, Unlock } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
@@ -86,6 +87,7 @@ const App = () => {
   const [speed, setSpeed] = useState(1);
   const [vehicleMode, setVehicleMode] = useState('plane');
   const [globeVisual, setGlobeVisual] = useState(DEFAULT_GLOBE_VISUAL);
+  const [simulationViewMode, setSimulationViewMode] = useState('globe');
   const [starshipTelemetry, setStarshipTelemetry] = useState(null);
   const [showGlobeSettings, setShowGlobeSettings] = useState(false);
   const [freeCameraMode, setFreeCameraMode] = useState(false);
@@ -368,6 +370,16 @@ const App = () => {
     setShowEventInfo(true);
   };
 
+  const handleWorldHighlightClick = (destination) => {
+    const lat = Number(destination.lat);
+    const lng = Number(destination.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    setSelectedCoords({ lat, lng });
+    setForcedCamera({ lat, lng, altitude: 1.18, duration: 850 });
+    setShowForm(true);
+  };
+
   const handleInspectorCityFocus = (city) => {
     setSelectedCity(city);
     const visibleIndex = city.eventIndexes?.[0] ?? visibleEvents.findIndex(e => e.to_name === city.name || e.from_name === city.name);
@@ -639,9 +651,11 @@ const App = () => {
           vehicleMode={vehicleMode}
           globeVisual={globeVisual}
           recordingActive={simulationRecorder.isRecording}
+          recordingViewMode={simulationViewMode}
           freeCameraMode={freeCameraMode}
           onGlobeClick={handleGlobeClick}
           onMarkerClick={handleMarkerClick}
+          onWorldHighlightClick={handleWorldHighlightClick}
           forcedCamera={forcedCamera}
        />
 
@@ -666,9 +680,13 @@ const App = () => {
           eventCount={visibleEvents.length}
           filterSummary={globeFilterSummary}
           recorder={simulationRecorder}
+          viewMode={simulationViewMode}
+          onViewModeChange={setSimulationViewMode}
           onStart={simulationRecorder.startRecording}
           onCancel={simulationRecorder.cancelRecording}
         />
+
+       <ContinentNavigator referenceLng={Number(currentVisibleEvent?.from_lng)} onNavigate={(camera) => { setIsPlaying(false); setForcedCamera(camera); }} />
 
        <StarshipTelemetry
           visible={isPlaying && activeTransport === 'starship' && !simulationRecorder.isRecording}

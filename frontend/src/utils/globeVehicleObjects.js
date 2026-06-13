@@ -305,6 +305,28 @@ const updateStarshipEngine = (group, vehicle, icon) => {
   plume.material.opacity = 0.42 + pulse * 0.14;
 };
 
+const updateLandingPresentation = (group, vehicle, icon) => {
+  const landingProgress = Math.max(0, Math.min(1, Number(vehicle.landingProgress || 0)));
+  const vehicleScale = 1 - landingProgress * 0.42;
+  const vehicleOpacity = 1 - landingProgress * 0.24;
+  const mesh = group.userData?.iconMesh;
+  const sprite = group.userData?.iconSprite;
+
+  if (mesh) {
+    mesh.scale.setScalar(vehicleScale);
+    if (mesh.material) mesh.material.opacity = vehicleOpacity;
+  }
+
+  if (sprite) {
+    sprite.scale.set(icon.scale * vehicleScale, icon.scale * vehicleScale, 1);
+    if (sprite.material) sprite.material.opacity = vehicleOpacity;
+  }
+
+  if (group.userData?.enginePlume?.material) {
+    group.userData.enginePlume.material.opacity *= 1 - landingProgress * 0.36;
+  }
+};
+
 export const updateVehicleObject = (obj, vehicle, globeRadius, toGlobeVector, textureCache) => {
   const mode = vehicle.vehicleMode || 'plane';
   const icon = TRAVELER_ICONS[mode] || TRAVELER_ICONS.plane;
@@ -316,6 +338,7 @@ export const updateVehicleObject = (obj, vehicle, globeRadius, toGlobeVector, te
   if (icon.renderMode === 'billboard') positionVehicleBillboard(obj, vehicle, globeRadius, toGlobeVector);
   else orientVehicleObject(obj, vehicle, globeRadius, toGlobeVector);
   updateStarshipEngine(obj, { ...vehicle, vehicleMode: mode }, icon);
+  updateLandingPresentation(obj, vehicle, icon);
 
   obj.renderOrder = 12;
   obj.userData = { ...obj.userData, ...vehicle, type: 'vehicle', vehicleMode: mode };

@@ -62,7 +62,8 @@
   justify-content: flex-end;
 }
 
-.export-speed-control {
+.export-speed-control,
+.export-view-control {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -74,7 +75,8 @@
   background: rgba(7, 18, 24, 0.68);
 }
 
-.export-speed-control select {
+.export-speed-control select,
+.export-view-control select {
   min-width: 58px;
   border: 0;
   outline: 0;
@@ -85,7 +87,12 @@
   font-weight: 800;
 }
 
-.export-speed-control option {
+.export-view-control select {
+  min-width: 76px;
+}
+
+.export-speed-control option,
+.export-view-control option {
   color: #eaf6f2;
   background: #0a1428;
 }
