@@ -28,6 +28,38 @@ const formatShortDate = (dateString) => {
   }
 };
 
+const getTimelineDateParts = (startDateString, endDateString) => {
+  const startDate = new Date(startDateString || '');
+  const endDate = endDateString ? new Date(endDateString) : null;
+
+  if (Number.isNaN(startDate.getTime())) {
+    return { primary: 'Unknown', secondary: 'Date' };
+  }
+
+  const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' });
+  const startDay = startDate.getDate();
+  const startYear = startDate.getFullYear();
+  const hasValidEnd = endDate && !Number.isNaN(endDate.getTime());
+
+  if (!hasValidEnd) {
+    return { primary: `${startMonth} ${startDay}`, secondary: String(startYear) };
+  }
+
+  const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' });
+  const endDay = endDate.getDate();
+  const endYear = endDate.getFullYear();
+
+  if (startYear === endYear && startMonth === endMonth) {
+    return { primary: `${startMonth} ${startDay}-${endDay}`, secondary: String(startYear) };
+  }
+
+  if (startYear === endYear) {
+    return { primary: `${startMonth} ${startDay} - ${endMonth} ${endDay}`, secondary: String(startYear) };
+  }
+
+  return { primary: `${startMonth} ${startDay}`, secondary: `${endMonth} ${endDay}` };
+};
+
 const formatDistanceValue = (value) => {
   const numeric = Number(value) || 0;
   return Math.round(numeric).toLocaleString();
@@ -502,6 +534,7 @@ const GlobeJourneyInspector = ({
               <div className="timeline-scroll">
                 {journeyTimeline.map(group => {
                   const isActive = group.indexes.includes(currentEventIndex);
+                  const dateParts = getTimelineDateParts(group.startDate, group.endDate);
                   return (
                     <button
                       type="button"
@@ -511,16 +544,10 @@ const GlobeJourneyInspector = ({
                     >
                       <span className="timeline-rail" />
                       <span className="timeline-main">
-                        <span className="timeline-topline">
-                          <span className="timeline-route">
-                            <strong>{group.from || 'Unknown'}</strong>
-                            <Route size={14} />
-                            <strong>{group.to || 'Unknown'}</strong>
-                          </span>
-                          <span className="timeline-date">
-                            {formatShortDate(group.startDate)}
-                            {group.endDate && <small>{formatShortDate(group.endDate)}</small>}
-                          </span>
+                        <span className="timeline-route">
+                          <strong>{group.from || 'Unknown'}</strong>
+                          <Route size={13} />
+                          <strong>{group.to || 'Unknown'}</strong>
                         </span>
                         <span className="timeline-subline">
                           <span className={`transport-chip ${group.legs[0]?.event?.transport || 'plane'}`}>
@@ -538,6 +565,10 @@ const GlobeJourneyInspector = ({
                             Return · {group.to || 'Unknown'} → {group.from || 'Unknown'}
                           </span>
                         )}
+                      </span>
+                      <span className={`timeline-date ${group.endDate ? 'range' : ''}`}>
+                        <strong>{dateParts.primary}</strong>
+                        <small>{dateParts.secondary}</small>
                       </span>
                     </button>
                   );
