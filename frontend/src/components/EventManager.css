@@ -3,15 +3,16 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%); /* Centered */
-  width: 600px;
-  max-width: 90vw;
-  max-height: 80vh;
+  box-sizing: border-box;
+  width: min(1040px, calc(100vw - 48px));
+  max-width: 94vw;
+  max-height: 82vh;
   background: rgba(10, 15, 25, 0.95); /* Deep dark background */
   border: 1px solid var(--primary);
   box-shadow: 0 0 40px rgba(0, 242, 255, 0.2);
   display: flex;
   flex-direction: column;
-  padding: 25px;
+  padding: 20px 24px 18px;
   z-index: 1000;
   border-radius: 12px; /* Consistent with other modals */
 }
@@ -20,23 +21,39 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
+  gap: 20px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid rgba(0, 242, 255, 0.3);
+}
+
+.manager-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .manager-header h2 {
   font-family: 'Orbitron', sans-serif;
   color: #fff;
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.32rem;
   text-shadow: 0 0 10px var(--primary);
+}
+
+.manager-title-block span {
+  color: rgba(226, 241, 255, 0.52);
+  font-family: var(--font-hud);
+  font-size: 0.68rem;
+  letter-spacing: 1.3px;
 }
 
 .manager-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .delete-all-btn {
@@ -67,128 +84,207 @@
   transform: scale(1.1);
 }
 
-.event-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding-right: 5px; /* Space for scrollbar */
+.manager-table {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 242, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(3, 12, 18, 0.44);
 }
 
-/* Scrollbar styling */
-.event-list::-webkit-scrollbar {
-  width: 6px;
+.manager-table-head,
+.manager-table-row {
+  display: grid;
+  grid-template-columns: 44px minmax(96px, 0.85fr) minmax(126px, 1fr) minmax(126px, 0.9fr) minmax(52px, 0.42fr) minmax(74px, 0.56fr) 64px;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 0;
 }
-.event-list::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.02);
+
+.manager-table-head {
+  min-height: 34px;
+  padding: 0 10px;
+  color: rgba(226, 241, 255, 0.42);
+  background: rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid rgba(0, 242, 255, 0.14);
+  font-family: var(--font-hud);
+  font-size: 0.6rem;
+  letter-spacing: 1.15px;
+  text-transform: uppercase;
 }
-.event-list::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 3px;
+
+.manager-overlay .event-list {
+  flex: 0 0 auto;
+  overflow: hidden;
+  display: block;
+  padding: 0;
 }
 
 .empty-msg {
+  margin: 34px 0;
   text-align: center;
   color: rgba(255, 255, 255, 0.4);
-  margin-top: 50px;
   font-style: italic;
 }
 
-/* Trip Group Item */
-.trip-group-container {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 15px;
+.manager-table-row {
+  min-height: 48px;
+  padding: 0 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+  background: rgba(255, 255, 255, 0.018);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
 }
 
-.trip-group-container:hover {
-  background: rgba(0, 242, 255, 0.05);
-  border-color: var(--primary);
-  transform: translateX(5px); /* Slight movement */
-  box-shadow: -2px 0 10px rgba(0, 242, 255, 0.1);
+.manager-table-row:last-child {
+  border-bottom: 0;
 }
 
-.trip-header {
-  display: flex;
-  justify-content: space-between;
+.manager-table-row:hover {
+  background: rgba(0, 242, 255, 0.065);
+  box-shadow: inset 3px 0 0 rgba(0, 242, 255, 0.75);
+}
+
+.manager-cell {
+  min-width: 0;
+  display: inline-flex;
   align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 
-.trip-title-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.manager-cell.index {
+  color: rgba(0, 242, 255, 0.82);
+  font-family: var(--font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+}
+
+.manager-cell.title,
+.manager-cell.route,
+.manager-cell.period,
+.manager-cell.distance {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.manager-cell.title {
   color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  word-break: keep-all;
 }
 
-.trip-title {
-  font-weight: bold;
-  font-size: 1.1rem;
+.manager-cell.route {
+  color: rgba(226, 241, 255, 0.58);
+  font-size: 0.73rem;
 }
 
-.trip-date {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.5);
-  display: flex;
-  align-items: center;
+.manager-cell.period {
+  color: rgba(226, 241, 255, 0.5);
+  font-family: var(--font-hud);
+  font-size: 0.62rem;
 }
 
-.trip-badge {
-  background: rgba(0, 242, 255, 0.2);
+.manager-cell.route svg,
+.manager-cell.period svg,
+.manager-cell.distance svg {
+  flex: 0 0 auto;
+  color: rgba(0, 242, 255, 0.74);
+}
+
+.manager-cell.legs,
+.manager-cell.distance {
+  justify-content: center;
+  min-height: 24px;
+  border-radius: 4px;
+  font-family: var(--font-hud);
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.manager-cell.legs {
   color: var(--primary);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: bold;
-  font-family: 'Orbitron', sans-serif;
-  border: 1px solid rgba(0, 242, 255, 0.3);
+  background: rgba(0, 242, 255, 0.13);
+  border: 1px solid rgba(0, 242, 255, 0.35);
 }
 
-.trip-badges {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.manager-cell.distance {
+  color: #e0b0ff;
+  background: rgba(112, 0, 255, 0.13);
+  border: 1px solid rgba(112, 0, 255, 0.48);
+  text-shadow: 0 0 5px rgba(112, 0, 255, 0.45);
 }
 
-.trip-distance-badge {
-  background: rgba(112, 0, 255, 0.15); 
-  color: #e0b0ff; /* Bright Lavender for better visibility */
-  padding: 2px 8px;
+.manager-cell.actions {
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.open-trip-btn,
+.delete-trip-btn {
+  width: 26px;
+  height: 28px;
+  flex: 0 0 26px;
+  border: none;
   border-radius: 4px;
-  font-size: 0.7rem;
-  font-family: 'Orbitron', sans-serif;
-  border: 1px solid rgba(112, 0, 255, 0.5);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  font-weight: bold;
-  text-shadow: 0 0 5px rgba(112, 0, 255, 0.5);
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.open-trip-btn {
+  color: rgba(226, 241, 255, 0.48);
+  background: transparent;
+}
+
+.open-trip-btn:hover,
+.open-trip-btn:focus-visible {
+  color: var(--primary);
+  background: rgba(0, 242, 255, 0.12);
 }
 
 /* Sort Button */
-.sort-btn {
+.sort-field,
+.sort-direction-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--primary);
   color: var(--primary);
-  padding: 6px 12px;
+  min-height: 36px;
+  padding: 0 10px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   gap: 6px;
   transition: all 0.2s;
 }
 
-.sort-btn:hover {
+.sort-field:hover,
+.sort-direction-btn:hover {
   background: rgba(0, 242, 255, 0.1);
   box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
   color: #fff;
+}
+
+.sort-field select {
+  min-width: 118px;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sort-field option {
+  color: #0d1720;
+  background: #e8fbff;
 }
 
 .divider-vertical {
@@ -200,20 +296,129 @@
 
 .delete-trip-btn {
   background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.4);
-  padding: 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  margin-left: auto; /* Push to right if inside flex container */
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .delete-trip-btn:hover {
   background: rgba(255, 50, 50, 0.2);
   color: #ff3333;
-  transform: scale(1.1);
+}
+
+.manager-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 242, 255, 0.18);
+  color: rgba(226, 241, 255, 0.5);
+  font-family: var(--font-hud);
+  font-size: 0.68rem;
+  letter-spacing: 1.1px;
+}
+
+.page-range {
+  white-space: nowrap;
+}
+
+.page-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.page-controls button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 242, 255, 0.28);
+  border-radius: 4px;
+  color: var(--primary);
+  background: rgba(0, 242, 255, 0.06);
+  cursor: pointer;
+  font-family: var(--font-hud);
+  font-size: 0.64rem;
+  letter-spacing: 1px;
+  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.page-controls button:hover:not(:disabled),
+.page-controls button:focus-visible:not(:disabled) {
+  background: rgba(0, 242, 255, 0.14);
+  border-color: rgba(0, 242, 255, 0.55);
+}
+
+.page-controls button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+@media (max-width: 760px) {
+  .manager-overlay {
+    width: calc(100vw - 28px);
+    padding: 18px;
+  }
+
+  .manager-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .manager-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .manager-table-head,
+  .manager-table-row {
+    grid-template-columns: 34px minmax(108px, 1fr) minmax(92px, 0.8fr) 54px 36px;
+  }
+
+  .manager-table-head span:nth-child(3),
+  .manager-table-head span:nth-child(6),
+  .manager-table-head span:nth-child(7),
+  .manager-cell.route,
+  .manager-cell.distance,
+  .manager-cell.actions .open-trip-btn {
+    display: none;
+  }
+
+  .manager-cell.actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-height: 760px) {
+  .manager-overlay {
+    padding: 16px 20px 14px;
+    max-height: 86vh;
+  }
+
+  .manager-header {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  .manager-header h2 {
+    font-size: 1.16rem;
+  }
+
+  .manager-title-block span {
+    font-size: 0.62rem;
+  }
+
+  .manager-table-row {
+    min-height: 44px;
+  }
+
+  .sort-field,
+  .sort-direction-btn {
+    min-height: 32px;
+    font-size: 0.66rem;
+  }
+
+  .manager-pagination {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
 }

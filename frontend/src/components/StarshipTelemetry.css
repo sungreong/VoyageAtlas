@@ -1,14 +1,15 @@
 .starship-telemetry {
   position: absolute;
   top: 48%;
-  right: 252px;
+  right: calc(var(--hud-edge, 20px) + min(344px, calc(100vw - 32px)) + 28px);
   z-index: 14;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: 136px minmax(0, 1fr);
   align-items: center;
   gap: 18px;
-  width: min(430px, calc(100vw - 760px));
-  min-width: 368px;
+  width: min(430px, calc(100vw - 820px));
+  min-width: 340px;
   padding: 16px 18px;
   color: #f4f7f0;
   background:
@@ -24,6 +25,15 @@
   contain: layout paint;
   isolation: isolate;
   overflow: hidden;
+}
+
+.app-container.starship-running .starship-telemetry {
+  top: clamp(188px, 38dvh, calc(100dvh - var(--control-safe-bottom, 186px) - 236px));
+  right: var(--hud-edge, 20px);
+  transform: none;
+  z-index: 13;
+  width: min(410px, calc(100vw - var(--hud-edge, 20px) * 2));
+  min-width: 310px;
 }
 
 .starship-telemetry::before {
@@ -103,11 +113,12 @@
 
 .metric-row {
   display: grid;
-  grid-template-columns: minmax(96px, 1fr) auto 46px;
+  grid-template-columns: minmax(96px, 1fr) auto minmax(52px, max-content);
   align-items: baseline;
   gap: 12px;
   font-family: var(--font-hud);
   letter-spacing: 0;
+  min-width: 0;
 }
 
 .metric-row span,
@@ -131,6 +142,7 @@
   color: rgba(244, 247, 240, 0.78);
   font-size: 0.86rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .fuel-row {
@@ -250,6 +262,55 @@
 
 .engine-output-row .core {
   background: linear-gradient(90deg, rgba(244, 247, 240, 0.7), #fff7df);
+}
+
+@media (max-width: 1440px) {
+  .starship-telemetry {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 14px;
+    width: min(360px, calc(100vw - 760px));
+    min-width: 318px;
+    padding: 13px 14px;
+  }
+
+  .starship-engine-map {
+    width: 112px;
+    height: 112px;
+  }
+
+  .metric-row {
+    grid-template-columns: minmax(70px, 1fr) auto minmax(44px, max-content);
+    gap: 8px;
+  }
+
+  .metric-row span,
+  .fuel-row span {
+    font-size: 0.82rem;
+  }
+
+  .metric-row strong {
+    font-size: 1.16rem;
+  }
+
+  .metric-row small {
+    font-size: 0.68rem;
+  }
+
+  .fuel-row {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .telemetry-phase {
+    grid-template-columns: 66px minmax(0, 1fr);
+    gap: 9px;
+  }
+}
+
+@media (min-width: 1181px) and (max-height: 820px) {
+  .app-container.starship-running .starship-telemetry {
+    top: calc(var(--hud-edge, 20px) + 156px);
+  }
 }
 
 @media (max-width: 1180px) {

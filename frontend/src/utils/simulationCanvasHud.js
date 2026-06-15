@@ -129,10 +129,20 @@ export const positionScreenHudSprite = (sprite, camera, dimensions, anchor, pixe
   const fov = THREE.MathUtils.degToRad(camera.fov || 45);
   const viewHeight = 2 * Math.tan(fov / 2) * distance;
   const viewWidth = viewHeight * (dimensions.width / dimensions.height);
-  const x = ((anchor.x ?? 0.5) - 0.5) * viewWidth;
-  const y = (0.5 - (anchor.y ?? 0.5)) * viewHeight;
   const worldHeight = viewHeight * (pixelHeight / dimensions.height);
   const aspect = sprite.userData.width / sprite.userData.height;
+  const pixelWidth = aspect * pixelHeight;
+  const safeMargin = Math.max(16, Number(anchor.margin ?? 28));
+  const clampedCenterX = Math.max(
+    safeMargin + pixelWidth / 2,
+    Math.min(dimensions.width - safeMargin - pixelWidth / 2, (anchor.x ?? 0.5) * dimensions.width)
+  );
+  const clampedCenterY = Math.max(
+    safeMargin + pixelHeight / 2,
+    Math.min(dimensions.height - safeMargin - pixelHeight / 2, (anchor.y ?? 0.5) * dimensions.height)
+  );
+  const x = (clampedCenterX / dimensions.width - 0.5) * viewWidth;
+  const y = (0.5 - clampedCenterY / dimensions.height) * viewHeight;
 
   sprite.position.copy(camera.position)
     .add(direction.multiplyScalar(distance))

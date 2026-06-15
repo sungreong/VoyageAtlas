@@ -184,6 +184,11 @@ const disposeVehicleChildren = (group) => {
   group.clear();
 };
 
+const getVehicleViewportScale = (vehicle) => {
+  const value = Number(vehicle?.viewportScale);
+  return Number.isFinite(value) ? Math.max(0.28, Math.min(1.18, value)) : 1;
+};
+
 const applyVehicleRenderMode = (group, mode, textureCache) => {
   const icon = TRAVELER_ICONS[mode] || TRAVELER_ICONS.plane;
   disposeVehicleChildren(group);
@@ -294,20 +299,23 @@ const updateStarshipEngine = (group, vehicle, icon) => {
   const plume = group.userData?.enginePlume;
   if (!plume) return;
 
+  const landingProgress = Math.max(0, Math.min(1, Number(vehicle.landingProgress || 0)));
+  const viewportScale = getVehicleViewportScale(vehicle) * (1 - landingProgress * 0.42);
   const progress = Number.isFinite(Number(vehicle.progress)) ? Number(vehicle.progress) : 0.5;
   const liftBias = progress < 0.18 || progress > 0.82 ? 1.04 : 0.88;
   const pulse = 0.5 + Math.sin(performance.now() * 0.018) * 0.5;
   const stretch = liftBias + pulse * 0.08;
   const widthPulse = 0.84 + pulse * 0.08;
 
-  plume.scale.set(stretch, widthPulse, 1);
-  plume.position.x = -icon.scale * (0.575 + pulse * 0.01);
+  plume.scale.set(stretch * viewportScale, widthPulse * viewportScale, 1);
+  plume.position.x = -icon.scale * viewportScale * (0.575 + pulse * 0.01);
   plume.material.opacity = 0.42 + pulse * 0.14;
 };
 
 const updateLandingPresentation = (group, vehicle, icon) => {
   const landingProgress = Math.max(0, Math.min(1, Number(vehicle.landingProgress || 0)));
-  const vehicleScale = 1 - landingProgress * 0.42;
+  const viewportScale = getVehicleViewportScale(vehicle);
+  const vehicleScale = viewportScale * (1 - landingProgress * 0.42);
   const vehicleOpacity = 1 - landingProgress * 0.24;
   const mesh = group.userData?.iconMesh;
   const sprite = group.userData?.iconSprite;

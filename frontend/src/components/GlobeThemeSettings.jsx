@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crosshair, Map, MapPin, Moon, Palette, RadioTower, Route, Settings2, Sun } from 'lucide-react';
+import { Crosshair, Flag, Landmark, Map, MapPin, Moon, Palette, RadioTower, Route, Settings2, Sun } from 'lucide-react';
 import {
   GLOBE_THEME_PRESETS,
   MARKER_STYLE_PROFILES,
@@ -13,6 +13,14 @@ const THEME_ICONS = {
   daybreak: Sun,
   atlas: Map,
   harbor: Palette
+};
+
+const MARKER_STYLE_ICONS = {
+  halo: Crosshair,
+  pinpoint: MapPin,
+  flag: Flag,
+  landmark: Landmark,
+  radar: RadioTower
 };
 
 const GlobeThemeSettings = ({ open, value, onChange, onOpenChange }) => {
@@ -81,20 +89,38 @@ const GlobeThemeSettings = ({ open, value, onChange, onOpenChange }) => {
             </select>
           </div>
 
-          <div className="theme-setting-row">
-            <label htmlFor="marker-style-select">
+          <div className="theme-marker-section">
+            <div className="theme-marker-heading">
               <Crosshair size={15} />
-              Selected city
-            </label>
-            <select
-              id="marker-style-select"
-              value={value.markerStyleId}
-              onChange={(event) => patchVisual({ markerStyleId: event.target.value })}
+              <span>Visited marker</span>
+            </div>
+            <div
+              className="marker-style-grid"
+              role="radiogroup"
+              aria-label="Visited place marker style"
             >
               {MARKER_STYLE_PROFILES.map(style => (
-                <option key={style.id} value={style.id}>{style.label}</option>
+                <button
+                  key={style.id}
+                  type="button"
+                  className={`marker-style-card ${value.markerStyleId === style.id ? 'active' : ''}`}
+                  onClick={() => patchVisual({ markerStyleId: style.id })}
+                  role="radio"
+                  aria-checked={value.markerStyleId === style.id}
+                >
+                  {(() => {
+                    const Icon = MARKER_STYLE_ICONS[style.id] || MapPin;
+                    return (
+                      <span className={`marker-preview marker-preview-${style.markerShape || style.id}`}>
+                        <Icon size={16} />
+                      </span>
+                    );
+                  })()}
+                  <span>{style.label}</span>
+                  <small>{style.caption}</small>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           <label className="theme-switch-row">

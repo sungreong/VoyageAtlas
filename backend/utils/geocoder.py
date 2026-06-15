@@ -110,7 +110,31 @@ def get_address_city_name(address: dict) -> str | None:
         or address.get("town")
         or address.get("village")
         or address.get("municipality")
+        or address.get("county")
+        or address.get("suburb")
+        or address.get("island")
     )
+
+
+def get_address_region_name(address: dict) -> str | None:
+    if not address:
+        return None
+
+    return (
+        address.get("state")
+        or address.get("province")
+        or address.get("region")
+        or address.get("county")
+        or address.get("state_district")
+    )
+
+
+def build_location_label(city: str | None, region: str | None, country: str | None) -> str | None:
+    parts = []
+    for part in (city, region, country):
+        if part and part not in parts:
+            parts.append(part)
+    return ", ".join(parts) if parts else None
 
 
 def get_country_representative(address: dict) -> dict | None:
@@ -179,13 +203,15 @@ def reverse_geocode_coords(lat: float, lng: float) -> dict:
         data = response.json()
         address = data.get("address") or {}
         city = get_address_city_name(address)
+        region = get_address_region_name(address)
         country = address.get("country")
 
-        if city:
-            name = f"{city}, {country}" if country and country not in city else city
+        name = build_location_label(city, region, country)
+        if name:
             return {
                 "name": name,
                 "city": city,
+                "region": region,
                 "country": country,
                 "display_name": data.get("display_name"),
                 "lat": lat,

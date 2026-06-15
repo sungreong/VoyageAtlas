@@ -3,6 +3,11 @@
   height: 100vh;
   position: relative;
   overflow: hidden;
+  --hud-edge: 20px;
+  --right-rail-width: 210px;
+  --control-deck-bottom: 30px;
+  --control-deck-height: 124px;
+  --control-safe-bottom: calc(var(--control-deck-bottom) + var(--control-deck-height) + 32px);
 }
 
 /* Extracted to HUD.css */
@@ -67,20 +72,186 @@
 
 .controls-container {
   position: absolute;
-  bottom: 30px;
+  bottom: var(--control-deck-bottom);
   left: 50%;
   transform: translateX(-50%);
-  width: 80%;
-  max-width: 1040px;
-  padding: 12px 18px;
+  width: min(80%, calc(100vw - 460px));
+  max-width: 1080px;
+  min-width: min(860px, calc(100vw - 64px));
+  padding: 12px 18px 14px;
   display: grid;
-  grid-template-columns: minmax(190px, 260px) auto minmax(220px, 1fr) auto auto auto;
+  grid-template-columns: minmax(220px, 320px) auto auto auto auto;
+  grid-template-areas:
+    "beat playback speed vehicle camera"
+    "scrubber scrubber scrubber scrubber scrubber";
   align-items: center;
-  gap: 16px;
+  gap: 10px 16px;
   z-index: 10;
 }
 
+@media (max-width: 1440px) and (min-width: 981px) {
+  .controls-container {
+    width: min(74vw, calc(100vw - 520px));
+    min-width: min(760px, calc(100vw - 480px));
+    grid-template-columns: minmax(210px, 1fr) auto minmax(118px, auto) minmax(150px, auto) auto;
+    gap: 9px 12px;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 769px) {
+  .app-container {
+    --control-deck-height: 156px;
+  }
+
+  .controls-container {
+    left: 24px;
+    right: calc(var(--right-rail-width, 210px) + var(--hud-edge, 20px) + 34px);
+    transform: none;
+    width: auto;
+    min-width: 0;
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    grid-template-areas:
+      "beat playback camera"
+      "scrubber scrubber scrubber"
+      "speed vehicle vehicle";
+  }
+
+  .flight-route-display {
+    display: none;
+  }
+}
+
+.hud-overlay.top-right {
+  width: var(--right-rail-width);
+  max-height: calc(100dvh - var(--control-safe-bottom) - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.hud-overlay.top-right.theme-open {
+  overflow: visible;
+}
+
+.right-rail-stack {
+  position: absolute;
+  top: var(--hud-edge, 20px);
+  right: var(--hud-edge, 20px);
+  bottom: calc(var(--control-safe-bottom, 122px) + 12px);
+  z-index: 14;
+  width: min(344px, calc(100vw - 32px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 2px 10px 8px 2px;
+  pointer-events: auto;
+  scrollbar-gutter: stable;
+}
+
+.right-rail-stack.theme-open {
+  z-index: 120;
+  overflow: visible;
+}
+
+.right-rail-stack.simulation-compact {
+  bottom: auto;
+  max-height: calc(100dvh - var(--hud-edge, 20px) * 2);
+}
+
+.right-rail-stack.simulation-compact .continent-navigator,
+.right-rail-stack.simulation-compact .simulation-export-panel {
+  display: none;
+}
+
+.app-container.simulation-running .flight-route-display {
+  display: none;
+}
+
+.right-rail-stack .hud-overlay.top-right,
+.right-rail-stack .continent-navigator,
+.right-rail-stack .simulation-export-panel {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 0 0 auto;
+  transform: none;
+}
+
+.right-rail-stack .hud-overlay.top-right {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  max-height: none;
+  overflow: visible;
+}
+
+.right-rail-stack .route-status-card,
+.right-rail-stack .hud-item.compact,
+.right-rail-stack .utility-drawer {
+  grid-column: 1 / -1;
+}
+
+.right-rail-stack .route-status-card {
+  min-width: 0;
+}
+
+.right-rail-stack .add-toggle-btn,
+.right-rail-stack .log-btn,
+.right-rail-stack .utility-drawer-toggle {
+  min-width: 0;
+  min-height: 42px;
+  width: 100%;
+  padding: 0;
+  display: inline-grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 0;
+}
+
+.right-rail-stack .add-toggle-btn svg,
+.right-rail-stack .log-btn svg,
+.right-rail-stack .utility-drawer-toggle svg:not(.drawer-chevron) {
+  width: 20px;
+  height: 20px;
+}
+
+.right-rail-stack .add-toggle-btn .btn-label,
+.right-rail-stack .log-btn .btn-label,
+.right-rail-stack .utility-drawer-toggle > span,
+.right-rail-stack .utility-drawer-toggle .drawer-chevron {
+  display: none;
+}
+
+.right-rail-stack .continent-navigator {
+  z-index: auto;
+  min-height: 0;
+}
+
+.right-rail-stack .continent-navigator.expanded {
+  flex: 0 1 auto;
+}
+
+.right-rail-stack .simulation-export-panel.collapsed,
+.right-rail-stack .simulation-export-panel.expanded {
+  width: 100%;
+}
+
+.right-rail-stack .simulation-export-panel {
+  z-index: auto;
+  flex: 0 0 auto;
+}
+
 .journey-beat {
+  grid-area: beat;
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -269,6 +440,7 @@
 }
 
 .playback-controls {
+  grid-area: playback;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -293,10 +465,11 @@
 }
 
 .scrubber-container {
+  grid-area: scrubber;
   position: relative;
   flex-grow: 1;
-  min-width: 180px;
-  padding-bottom: 10px;
+  min-width: 260px;
+  padding: 4px 2px 12px;
 }
 
 .scrubber-container input {
@@ -334,6 +507,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.speed-toggle {
+  grid-area: speed;
+}
+
+.vehicle-toggle {
+  grid-area: vehicle;
 }
 
 .speed-toggle label,
@@ -398,6 +579,7 @@
 
 /* Camera Lock Toggle Button */
 .camera-toggle {
+  grid-area: camera;
   background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 60, 0.95));
   color: #00f2ff;
   border: 1px solid rgba(0, 242, 255, 0.3);
@@ -457,7 +639,7 @@
 
 .flight-route-display {
   position: absolute;
-  bottom: 120px;
+  bottom: calc(var(--control-deck-bottom) + var(--control-deck-height) + 4px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -520,6 +702,14 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .app-container {
+    --hud-edge: 14px;
+    --right-rail-width: 168px;
+    --control-deck-bottom: 14px;
+    --control-deck-height: 170px;
+    --control-safe-bottom: calc(var(--control-deck-bottom) + var(--control-deck-height) + 32px);
+  }
+
   .globe-scope-panel {
     top: 94px;
     left: 14px;
@@ -556,7 +746,7 @@
   }
 
   .flight-route-display {
-    bottom: 100px;
+    bottom: calc(var(--control-deck-bottom) + var(--control-deck-height) + 14px);
     padding: 12px 24px;
   }
 
@@ -581,6 +771,10 @@
     width: auto;
     max-width: none;
     grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "beat playback"
+      "scrubber scrubber"
+      "camera camera";
     gap: 10px;
     padding: 12px;
   }
@@ -601,6 +795,14 @@
   .top-right .log-btn,
   .top-right .neon-btn-icon {
     display: none;
+  }
+
+  .right-rail-stack .top-right .log-btn {
+    display: inline-grid;
+  }
+
+  .top-right .utility-drawer .neon-btn-icon {
+    display: grid;
   }
 
   .add-toggle-btn {
@@ -751,6 +953,10 @@
   font-weight: 800;
   cursor: pointer;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 
 .top-right .neon-btn-icon {
@@ -778,65 +984,242 @@
   background: rgba(255, 226, 168, 0.1);
 }
 
-.manager-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 450px;
-  height: 600px; /* Fixed height for consistent layout */
-  max-height: 85vh;
-  padding: 30px;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: blur(15px);
-}
-
-.manager-header {
-  display: flex;
-  justify-content: space-between;
+.utility-drawer-toggle {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 16px;
   align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 10px;
+  justify-items: start;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(158, 207, 198, 0.18);
+  border-radius: 8px;
+  color: rgba(240, 247, 244, 0.74);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.74rem;
+  font-weight: 900;
+  pointer-events: auto;
 }
 
-.manager-header h2 {
-  font-family: 'Orbitron', sans-serif;
-  color: var(--primary);
-  margin: 0;
+.utility-drawer-toggle:hover,
+.utility-drawer-toggle.active {
+  color: #ffe2a8;
+  border-color: rgba(255, 226, 168, 0.34);
+  background: rgba(255, 226, 168, 0.1);
 }
 
-.manager-actions {
-  display: flex;
-  gap: 15px;
+.utility-drawer-toggle .drawer-chevron {
+  justify-self: end;
+  transition: transform 180ms ease;
 }
 
-.delete-all-btn {
-  background: #ff4d4d;
-  color: #fff;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 4px;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.7rem;
-  cursor: pointer;
+.utility-drawer-toggle.active .drawer-chevron {
+  transform: rotate(180deg);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--text);
-  cursor: pointer;
+.utility-drawer {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding-top: 2px;
 }
 
-.event-list {
-  overflow-y: auto;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+@media (max-height: 1080px) and (min-width: 769px) {
+  .app-container {
+    --hud-edge: 18px;
+  }
+
+  .right-rail-stack {
+    top: var(--hud-edge, 18px);
+    bottom: calc(var(--control-safe-bottom) + 10px);
+    width: min(320px, calc(100vw - 32px));
+    gap: 10px;
+  }
+
+  .right-rail-stack .hud-overlay.top-right {
+    gap: 8px;
+    padding: 12px;
+  }
+}
+
+@media (max-height: 860px) and (min-width: 769px) {
+  .app-container {
+    --hud-edge: 14px;
+    --right-rail-width: 184px;
+    --control-deck-bottom: 18px;
+    --control-deck-height: 124px;
+  }
+
+  .hud-overlay.top-right {
+    top: 14px;
+    gap: 7px;
+    padding: 10px;
+    max-height: calc(100dvh - var(--control-safe-bottom) - 8px);
+  }
+
+  .right-rail-stack {
+    top: var(--hud-edge, 14px);
+    right: var(--hud-edge, 14px);
+    bottom: calc(var(--control-safe-bottom) + 8px);
+    width: min(304px, calc(100vw - 28px));
+    gap: 9px;
+  }
+
+  .top-right .route-status-card {
+    min-width: 0;
+    padding: 8px 9px;
+    gap: 1px;
+  }
+
+  .top-right .route-status-card span {
+    font-size: 0.54rem;
+    letter-spacing: 0.8px;
+  }
+
+  .top-right .route-status-card strong {
+    font-size: 0.78rem;
+  }
+
+  .top-right .route-status-card small {
+    font-size: 0.62rem;
+  }
+
+  .add-toggle-btn {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.68rem;
+  }
+
+  .log-btn,
+  .utility-drawer-toggle,
+  .top-right .neon-btn-icon {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 0.66rem;
+  }
+
+  .utility-drawer {
+    gap: 6px;
+  }
+
+  .controls-container {
+    padding: 10px 14px 12px;
+  }
+}
+
+@media (max-height: 760px) and (min-width: 769px) {
+  .app-container {
+    --right-rail-width: 158px;
+    --control-deck-bottom: 14px;
+    --control-deck-height: 148px;
+  }
+
+  .controls-container {
+    max-width: 860px;
+    min-width: 0;
+    padding: 9px 12px 10px;
+    gap: 7px 10px;
+  }
+
+  .journey-beat small,
+  .speed-toggle label,
+  .vehicle-toggle label {
+    display: none;
+  }
+
+  .scrubber-container {
+    padding-bottom: 8px;
+  }
+
+  .hud-overlay.top-right {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .right-rail-stack {
+    width: min(284px, calc(100vw - 28px));
+    gap: 8px;
+  }
+
+  .top-right .route-status-card {
+    padding: 7px 8px;
+  }
+
+  .top-right .route-status-card small {
+    display: none;
+  }
+
+  .add-toggle-btn {
+    min-height: 34px;
+    gap: 4px;
+    font-size: 0.6rem;
+  }
+
+  .log-btn {
+    min-height: 30px;
+    font-size: 0.58rem;
+  }
+
+  .utility-drawer-toggle {
+    min-height: 32px;
+    grid-template-columns: 20px minmax(0, 1fr) 14px;
+    gap: 6px;
+    font-size: 0.62rem;
+  }
+
+  .utility-drawer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .top-right .utility-drawer .neon-btn-icon {
+    min-height: 42px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 3px;
+    padding: 5px 4px;
+  }
+
+  .top-right .utility-drawer .neon-btn-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .top-right .utility-drawer .btn-label {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 0.5rem;
+    line-height: 1;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .right-rail-stack .add-toggle-btn,
+  .right-rail-stack .log-btn,
+  .right-rail-stack .utility-drawer-toggle {
+    min-height: 40px;
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .right-rail-stack {
+    top: 14px;
+    right: 14px;
+    bottom: calc(var(--control-safe-bottom) + 8px);
+    width: min(320px, calc(100vw - 28px));
+  }
+}
+
+@media (max-width: 980px) {
+  .right-rail-stack {
+    bottom: auto;
+    max-height: min(42dvh, 307px);
+  }
 }
 
 .event-item {
@@ -897,12 +1280,6 @@
 
 .del-event-btn:hover {
   opacity: 1;
-}
-
-.empty-msg {
-  text-align: center;
-  margin-top: 50px;
-  opacity: 0.5;
 }
 
 .trip-type-toggle {
@@ -1653,6 +2030,10 @@ textarea.neon-input {
   .top-right .log-btn,
   .top-right .neon-btn-icon {
     display: none;
+  }
+
+  .top-right .utility-drawer .neon-btn-icon {
+    display: grid;
   }
 }
 

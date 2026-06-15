@@ -156,7 +156,8 @@ export const MARKER_STYLE_PROFILES = [
   {
     id: 'halo',
     label: 'City halo',
-    caption: 'Clear selected-city rings',
+    caption: 'Classic readable labels',
+    markerShape: 'label',
     ringRadiusScale: 1,
     inactiveRingScale: 1,
     ringSpeedScale: 1,
@@ -165,16 +166,38 @@ export const MARKER_STYLE_PROFILES = [
   {
     id: 'pinpoint',
     label: 'Pinpoint',
-    caption: 'Smaller labels, less overlap',
-    ringRadiusScale: 0.72,
-    inactiveRingScale: 0.62,
-    ringSpeedScale: 0.86,
-    labelScale: 0.88
+    caption: 'Bold pins with city tags',
+    markerShape: 'pin',
+    ringRadiusScale: 1.04,
+    inactiveRingScale: 0.96,
+    ringSpeedScale: 1.02,
+    labelScale: 0.96
+  },
+  {
+    id: 'flag',
+    label: 'Journey flag',
+    caption: 'Bright flags over visited stops',
+    markerShape: 'flag',
+    ringRadiusScale: 0.86,
+    inactiveRingScale: 0.7,
+    ringSpeedScale: 0.92,
+    labelScale: 0.96
+  },
+  {
+    id: 'landmark',
+    label: 'Floating landmark',
+    caption: 'Large monument silhouettes',
+    markerShape: 'landmark',
+    ringRadiusScale: 1.04,
+    inactiveRingScale: 0.82,
+    ringSpeedScale: 0.9,
+    labelScale: 0.96
   },
   {
     id: 'radar',
     label: 'Radar',
-    caption: 'Bigger destination pulse',
+    caption: 'Signal beacons with stronger pulse',
+    markerShape: 'beacon',
     ringRadiusScale: 1.22,
     inactiveRingScale: 0.9,
     ringSpeedScale: 1.18,

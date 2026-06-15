@@ -11,15 +11,13 @@ import DataManagement from './components/DataManagement';
 import ExportImportModal from './components/ExportImportModal';
 import ContinentStats from './components/ContinentStats';
 import GlobeJourneyInspector from './components/GlobeJourneyInspector';
-import SimulationExportPanel from './components/SimulationExportPanel';
 import StarshipTelemetry from './components/StarshipTelemetry';
-import GlobeThemeSettings from './components/GlobeThemeSettings';
-import ContinentNavigator from './components/ContinentNavigator';
+import RightRailStack from './components/RightRailStack';
 import './App.css';
-import { Play, Pause, SkipForward, SkipBack, Plane, MapPin, Wind, ArrowUp, Plus, Calendar, Database, Share2, Globe, AlertTriangle, RefreshCcw, Lock, Unlock } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, AlertTriangle, RefreshCcw, Lock, Unlock } from 'lucide-react';
 import TripDashboard from './components/TripDashboard';
 import './components/HUD.css';
-import { calculateDistance, formatDistance } from './utils';
+import { calculateDistance } from './utils';
 import { useSimulationRecorder } from './hooks/useSimulationRecorder';
 import { DEFAULT_GLOBE_VISUAL } from './config/globeThemes';
 
@@ -90,6 +88,7 @@ const App = () => {
   const [simulationViewMode, setSimulationViewMode] = useState('globe');
   const [starshipTelemetry, setStarshipTelemetry] = useState(null);
   const [showGlobeSettings, setShowGlobeSettings] = useState(false);
+  const [showUtilityRail, setShowUtilityRail] = useState(false);
   const [freeCameraMode, setFreeCameraMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [panoUrl, setPanoUrl] = useState(null);
@@ -106,6 +105,7 @@ const App = () => {
   const [selectedCity, setSelectedCity] = useState(null); // { name, lat, lng }
   const [selectedTripId, setSelectedTripId] = useState(null); 
   const [forcedCamera, setForcedCamera] = useState(null); // { lat, lng, altitude, duration }
+  const [favoriteDraftTarget, setFavoriteDraftTarget] = useState(null);
   const [dataError, setDataError] = useState(null);
   const [globeFilter, setGlobeFilter] = useState({
     dateMode: 'all',
@@ -350,6 +350,47 @@ const App = () => {
     setShowForm(true);
   };
 
+  const handleGlobeFavoritePick = async ({ lat, lng }) => {
+    const targetLat = Number(lat);
+    const targetLng = Number(lng);
+    if (!Number.isFinite(targetLat) || !Number.isFinite(targetLng)) return;
+
+    setIsPlaying(false);
+    setForcedCamera({ lat: targetLat, lng: targetLng, altitude: 1.18, duration: 850 });
+    const draftId = `${targetLat.toFixed(4)}:${targetLng.toFixed(4)}:${Date.now()}`;
+    setFavoriteDraftTarget({
+      id: draftId,
+      name: `선택 위치 ${targetLat.toFixed(3)}, ${targetLng.toFixed(3)}`,
+      lat: targetLat,
+      lng: targetLng,
+      resolving: true
+    });
+
+    try {
+      const { data } = await axios.get(`${API_BASE}/geocode`, {
+        params: { lat: targetLat, lng: targetLng }
+      });
+      setFavoriteDraftTarget(prev => (
+        prev?.id === draftId
+          ? {
+              ...prev,
+              name: data.name || prev.name,
+              city: data.city || '',
+              region: data.region || '',
+              country: data.country || '',
+              display_name: data.display_name || '',
+              source: data.source || '',
+              resolving: false
+            }
+          : prev
+      ));
+    } catch {
+      setFavoriteDraftTarget(prev => (
+        prev?.id === draftId ? { ...prev, resolving: false } : prev
+      ));
+    }
+  };
+
   const openBlankOdysseyModal = () => {
     setSelectedCoords(null);
     setShowForm(true);
@@ -395,8 +436,31 @@ const App = () => {
 
   const handleInspectorEventFocus = (eventIndex) => {
     if (eventIndex < 0 || eventIndex >= visibleEvents.length) return;
-    setCurrentEventIndex(visibleEvents[eventIndex].__sourceIndex);
-    setSelectedCity(null);
+    const event = visibleEvents[eventIndex];
+    const destinationLat = Number(event.to_lat);
+    const destinationLng = Number(event.to_lng);
+
+    setIsPlaying(false);
+    setCurrentEventIndex(event.__sourceIndex);
+    setSelectedCity(
+      Number.isFinite(destinationLat) && Number.isFinite(destinationLng)
+        ? {
+            name: event.to_name,
+            lat: destinationLat,
+            lng: destinationLng,
+            eventIndexes: [eventIndex]
+          }
+        : null
+    );
+
+    if (Number.isFinite(destinationLat) && Number.isFinite(destinationLng)) {
+      setForcedCamera({
+        lat: destinationLat,
+        lng: destinationLng,
+        altitude: 1.22,
+        duration: 900
+      });
+    }
   };
 
   const handleVisibleIndexChange = (visibleIndex) => {
@@ -640,8 +704,30 @@ const App = () => {
     }
   };
 
+  const handleUtilityRailToggle = () => {
+    setShowUtilityRail(prev => {
+      const next = !prev;
+      if (!next) setShowGlobeSettings(false);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    setShowUtilityRail(false);
+    setShowGlobeSettings(false);
+    setShowCalendar(false);
+    setShowDataManagement(false);
+    setShowExportImport(false);
+    setShowStats(false);
+  }, [isPlaying]);
+
+  const simulationLayoutActive = isPlaying && !simulationRecorder.isRecording;
+  const starshipSimulationActive = simulationLayoutActive && activeTransport === 'starship';
+
   return (
-    <div className="app-container">
+    <div className={`app-container ${simulationLayoutActive ? 'simulation-running' : ''} ${starshipSimulationActive ? 'starship-running' : ''}`}>
        <TravelGlobe
           ref={globeCaptureRef}
           events={visibleEvents}
@@ -654,6 +740,7 @@ const App = () => {
           recordingViewMode={simulationViewMode}
           freeCameraMode={freeCameraMode}
           onGlobeClick={handleGlobeClick}
+          onGlobeContextPick={handleGlobeFavoritePick}
           onMarkerClick={handleMarkerClick}
           onWorldHighlightClick={handleWorldHighlightClick}
           forcedCamera={forcedCamera}
@@ -663,7 +750,6 @@ const App = () => {
           events={visibleEvents}
           currentEventIndex={currentVisibleIndex}
           selectedCity={selectedCity}
-          isPlaying={isPlaying}
           onCityFocus={handleInspectorCityFocus}
           onEventFocus={handleInspectorEventFocus}
           globeFilter={globeFilter}
@@ -675,18 +761,6 @@ const App = () => {
           onFilterReset={resetGlobeFilter}
           onAddTravel={openBlankOdysseyModal}
         />
-
-       <SimulationExportPanel
-          eventCount={visibleEvents.length}
-          filterSummary={globeFilterSummary}
-          recorder={simulationRecorder}
-          viewMode={simulationViewMode}
-          onViewModeChange={setSimulationViewMode}
-          onStart={simulationRecorder.startRecording}
-          onCancel={simulationRecorder.cancelRecording}
-        />
-
-       <ContinentNavigator referenceLng={Number(currentVisibleEvent?.from_lng)} onNavigate={(camera) => { setIsPlaying(false); setForcedCamera(camera); }} />
 
        <StarshipTelemetry
           visible={isPlaying && activeTransport === 'starship' && !simulationRecorder.isRecording}
@@ -704,97 +778,43 @@ const App = () => {
          </div>
        )}
 
-       {/* Top Left HUD */}
-       <div className="hud-overlay top-left hud-font glass-panel">
-         <div className="hud-item primary">
-           <Plane size={18} /> <span>{isPlaying ? 'Playing journey' : 'Ready'}</span>
-         </div>
-         <div className="hud-item">
-           <MapPin size={18} /> <span>Current: {currentVisibleEvent?.from_name || 'N/A'}</span>
-         </div>
-         <div className="hud-item">
-           <SkipForward size={18} /> <span>Next: {currentVisibleEvent?.to_name || 'N/A'}</span>
-         </div>
-       </div>
-
-       {/* Top Right Menu */}
-       <div className="hud-overlay top-right hud-font glass-panel">
-         <div className={`route-status-card ${activeTransport}`}>
-           <span>{activeTransportCopy.status}</span>
-           <strong>{activeTransportCopy.label}</strong>
-           <small>{formatDistance(activeLegDistance)} km leg</small>
-         </div>
-         {isPlaying && activeTransport === 'plane' && (
-           <>
-             <div className="hud-item compact">
-               <ArrowUp size={16} /> <span>{activeTransportCopy.metricA}: 32,000 ft</span>
-             </div>
-             <div className="hud-item compact">
-               <Wind size={16} /> <span>{activeTransportCopy.metricB}: {Math.round(840 * speed)} km/h</span>
-             </div>
-           </>
-         )}
-         {isPlaying && activeTransport === 'ship' && (
-           <>
-             <div className="hud-item compact">
-               <ArrowUp size={16} /> <span>{activeTransportCopy.metricA}</span>
-             </div>
-             <div className="hud-item compact">
-               <Wind size={16} /> <span>{activeTransportCopy.metricB}: {Math.max(18, Math.round(32 * speed))} km/h</span>
-             </div>
-           </>
-         )}
-         <button className="add-toggle-btn" onClick={() => {
-           if (showForm) {
-             closeOdysseyModal();
-           } else {
-             openBlankOdysseyModal();
-           }
-         }}>
-           <Plus /> {showForm ? 'CLOSE' : 'ADD TRAVEL'}
-         </button>
-         <button className="log-btn" onClick={() => setShowManager(true)}>
-           VIEW JOURNEY LOG
-         </button>
-         <button 
-           className={`neon-btn-icon ${showCalendar ? 'active' : ''}`}
-           onClick={() => setShowCalendar(!showCalendar)}
-           title="Calendar View"
-         >
-           <Calendar size={20} />
-           <span className="btn-label">CALENDAR</span>
-         </button>
-         <button 
-           className={`neon-btn-icon ${showDataManagement ? 'active' : ''}`}
-           onClick={() => setShowDataManagement(!showDataManagement)}
-           title="Manage Data"
-         >
-           <Database size={20} />
-           <span className="btn-label">MANAGE</span>
-         </button>
-         <button 
-           className={`neon-btn-icon ${showExportImport ? 'active' : ''}`}
-           onClick={() => setShowExportImport(!showExportImport)}
-           title="Export/Import Data"
-         >
-           <Share2 size={20} />
-           <span className="btn-label">PORTABILITY</span>
-         </button>
-         <button 
-           className={`neon-btn-icon ${showStats ? 'active' : ''}`}
-           onClick={() => setShowStats(!showStats)}
-           title="Travel Statistics"
-         >
-           <Globe size={20} />
-           <span className="btn-label">STATS</span>
-         </button>
-         <GlobeThemeSettings
-           open={showGlobeSettings}
-           value={globeVisual}
-           onChange={setGlobeVisual}
-           onOpenChange={setShowGlobeSettings}
-         />
-       </div>
+       <RightRailStack
+          activeTransport={activeTransport}
+          activeTransportCopy={activeTransportCopy}
+          activeLegDistance={activeLegDistance}
+          isPlaying={isPlaying}
+          simulationLayoutActive={simulationLayoutActive}
+          speed={speed}
+          showForm={showForm}
+          onOpenTravel={openBlankOdysseyModal}
+          onCloseTravel={closeOdysseyModal}
+          showUtilityRail={showUtilityRail}
+          onUtilityRailToggle={handleUtilityRailToggle}
+          showCalendar={showCalendar}
+          setShowCalendar={setShowCalendar}
+          showDataManagement={showDataManagement}
+          setShowDataManagement={setShowDataManagement}
+          showExportImport={showExportImport}
+          setShowExportImport={setShowExportImport}
+          showStats={showStats}
+          setShowStats={setShowStats}
+          showGlobeSettings={showGlobeSettings}
+          setShowGlobeSettings={setShowGlobeSettings}
+          globeVisual={globeVisual}
+          setGlobeVisual={setGlobeVisual}
+          referenceLng={Number(currentVisibleEvent?.from_lng)}
+          suggestedFavorite={favoriteDraftTarget}
+          onSuggestedFavoriteDone={() => setFavoriteDraftTarget(null)}
+          onNavigate={(camera) => { setIsPlaying(false); setForcedCamera(camera); }}
+          eventCount={visibleEvents.length}
+          filterSummary={globeFilterSummary}
+          recorder={simulationRecorder}
+          viewMode={simulationViewMode}
+          onViewModeChange={setSimulationViewMode}
+          onStartRecording={simulationRecorder.startRecording}
+          onCancelRecording={simulationRecorder.cancelRecording}
+          onOpenManager={() => setShowManager(true)}
+        />
        
        {showForm && (
          <CreateOdysseyModal 

@@ -7,6 +7,8 @@ import {
   Crosshair,
   Filter,
   MapPinned,
+  PanelLeftClose,
+  PanelLeftOpen,
   Route,
   RotateCcw,
   X
@@ -87,7 +89,6 @@ const GlobeJourneyInspector = ({
   events,
   currentEventIndex,
   selectedCity,
-  isPlaying,
   onCityFocus,
   onEventFocus,
   globeFilter = { dateFrom: '', dateTo: '', places: [] },
@@ -100,6 +101,7 @@ const GlobeJourneyInspector = ({
   onAddTravel
 }) => {
   const [activeView, setActiveView] = useState('timeline');
+  const [collapsed, setCollapsed] = useState(false);
   const [placePickerOpen, setPlacePickerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const currentEvent = events[currentEventIndex] || null;
@@ -272,6 +274,21 @@ const GlobeJourneyInspector = ({
 
   const activeCityName = selectedCity?.name || currentEvent?.to_name || '';
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        className="globe-inspector-collapsed glass-panel"
+        onClick={() => setCollapsed(false)}
+        aria-label="Show journey scope"
+        title="Show journey scope"
+      >
+        <PanelLeftOpen size={18} />
+        <span>Journey scope</span>
+      </button>
+    );
+  }
+
   return (
     <aside className="globe-inspector glass-panel" aria-label="Journey scope">
       <div className="inspector-header">
@@ -279,9 +296,24 @@ const GlobeJourneyInspector = ({
           <span className="eyebrow">Journey scope</span>
           <h2>Route command</h2>
         </div>
-        <div className={`map-status ${mapSummary.coordinateIssues.length ? 'warning' : 'ready'}`}>
-          {mapSummary.coordinateIssues.length ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
-          <span>{mapSummary.coordinateIssues.length ? 'Review' : 'Mapped'}</span>
+        <div className="inspector-header-actions">
+          <div className={`map-status ${mapSummary.coordinateIssues.length ? 'warning' : 'ready'}`}>
+            {mapSummary.coordinateIssues.length ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
+            <span>{mapSummary.coordinateIssues.length ? 'Review' : 'Mapped'}</span>
+          </div>
+          <button
+            type="button"
+            className="inspector-collapse-btn"
+            onClick={() => {
+              setDatePickerOpen(false);
+              setPlacePickerOpen(false);
+              setCollapsed(true);
+            }}
+            aria-label="Hide journey scope"
+            title="Hide journey scope"
+          >
+            <PanelLeftClose size={16} />
+          </button>
         </div>
       </div>
 
@@ -426,33 +458,7 @@ const GlobeJourneyInspector = ({
         </div>
       ) : (
         <>
-          <section className="active-leg-panel" aria-label="Current route">
-            <div className="leg-meta">
-              <span>{isPlaying ? 'Now playing' : 'Selected leg'}</span>
-              <strong>{currentEventIndex + 1} / {events.length}</strong>
-            </div>
-            <div className="leg-route">
-              <span>{currentEvent?.from_name || 'Unknown'}</span>
-              <Route size={17} />
-              <span>{currentEvent?.to_name || 'Unknown'}</span>
-            </div>
-            <div className="leg-detail-row">
-              <span>{formatShortDate(currentEvent?.start_datetime)}</span>
-              <strong>{formatDistanceValue(filterSummary.activeLegDistance)} km</strong>
-            </div>
-          </section>
-
           <div className="inspector-tabs" role="tablist" aria-label="Journey inspector view">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeView === 'places'}
-              className={activeView === 'places' ? 'active' : ''}
-              onClick={() => setActiveView('places')}
-            >
-              <MapPinned size={14} />
-              Places
-            </button>
             <button
               type="button"
               role="tab"
@@ -463,29 +469,38 @@ const GlobeJourneyInspector = ({
               <CalendarDays size={14} />
               Timeline
             </button>
-          </div>
-
-          <div className="coverage-grid" aria-label="Map summary">
-            <div>
-              <span>{formatDistanceValue(filterSummary.distance)}</span>
-              <p>{filterSummary.isFiltered ? 'Filtered km' : 'Total km'}</p>
-            </div>
-            <div>
-              <span>{mapSummary.cities.length}</span>
-              <p>Places</p>
-            </div>
-            <div>
-              <span>{events.length}</span>
-              <p>Legs</p>
-            </div>
-            <div>
-              <span>{mapSummary.repeatCities.length}</span>
-              <p>Repeats</p>
-            </div>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === 'places'}
+              className={activeView === 'places' ? 'active' : ''}
+              onClick={() => setActiveView('places')}
+            >
+              <MapPinned size={14} />
+              Places
+            </button>
           </div>
 
           {activeView === 'places' ? (
             <section className="place-check-list" aria-label="Mapped places">
+              <div className="coverage-grid" aria-label="Map summary">
+                <div>
+                  <span>{formatDistanceValue(filterSummary.distance)}</span>
+                  <p>{filterSummary.isFiltered ? 'Filtered km' : 'Total km'}</p>
+                </div>
+                <div>
+                  <span>{mapSummary.cities.length}</span>
+                  <p>Places</p>
+                </div>
+                <div>
+                  <span>{events.length}</span>
+                  <p>Legs</p>
+                </div>
+                <div>
+                  <span>{mapSummary.repeatCities.length}</span>
+                  <p>Repeats</p>
+                </div>
+              </div>
               <div className="section-title">
                 <span>Visible places</span>
                 <small>{mapSummary.cities.filter(city => city.valid).length} placed</small>
@@ -529,7 +544,7 @@ const GlobeJourneyInspector = ({
             <section className="journey-timeline" aria-label="Chronological journey">
               <div className="section-title">
                 <span>Date sequence</span>
-                <small>{journeyTimeline.length} groups</small>
+                <small>{currentEventIndex + 1} / {events.length}</small>
               </div>
               <div className="timeline-scroll">
                 {journeyTimeline.map(group => {

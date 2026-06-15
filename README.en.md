@@ -6,6 +6,38 @@ VoyageAtlas is a travel archive app designed to make personal travel history bea
 
 You can record trips as `Odyssey` entries, connect city-to-city routes, attach photos, videos, and panorama media, and replay the whole journey as a spatial story on Earth.
 
+## Screenshots
+
+### Main Globe
+
+The globe stays central while route scope, playback, continent jump, simulation export, and secondary tools start in compact collapsed states.
+
+![VoyageAtlas main globe](docs/screenshots/readme-main-globe.png)
+
+### Simulation Playback
+
+Replay filtered journeys on the globe and export them as Globe/Aerial simulation videos.
+
+![VoyageAtlas simulation playback](docs/voyageatlas-simulation-2026-06-15T13-02-31-657Z.gif)
+
+### Odyssey Creation
+
+Create an Odyssey by entering the trip name, origin city, dates, and stop sequence.
+
+![VoyageAtlas Odyssey creation](docs/screenshots/readme-create-odyssey.png)
+
+### Journey Log
+
+Review saved journeys, compare leg counts and distance, and jump into trip management.
+
+![VoyageAtlas Journey Log](docs/screenshots/readme-journey-log.png)
+
+### Globe Theme And Recommendations
+
+Open `TOOLS`, then tune globe style, route shape, city markers, and recommended destination layers.
+
+![VoyageAtlas globe theme settings](docs/screenshots/readme-globe-theme.png)
+
 ## Core Values
 
 - Make travel logging feel effortless.
@@ -51,8 +83,9 @@ For installation details, verification steps, and troubleshooting, see the [Setu
 2. Enter origin, destination, dates, and transport type.
 3. Replay the route on the globe and adjust camera, speed, and vehicle mode.
 4. Upload photos, videos, and panoramas from the Journey Log or Dashboard.
-5. Configure recommended destination layers in `GLOBE THEME`.
-6. Filter the journey scope and export it as a simulation video.
+5. Open `TOOLS` only when you need Calendar, Manage, Portability, Stats, or `GLOBE THEME`.
+6. Expand continent jump or simulation export only when needed so the globe stays spacious.
+7. Filter the journey scope and export it as a simulation video.
 
 ## Architecture
 

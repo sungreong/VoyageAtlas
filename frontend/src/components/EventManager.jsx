@@ -1,18 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { Trash2, X, Image as ImageIcon, MapPin, ChevronDown, ChevronRight, Calendar, ArrowUpDown, Globe } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Trash2, X, Calendar, ArrowUpDown, Globe, Route, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import './EventManager.css';
 import { calculateDistance, formatDistance } from '../utils';
 import { API_BASE } from '../api/client';
 
-const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) => {
+const EventManager = ({ onClose, onRefresh, onSelectTrip }) => {
   // We ignore propEvents for the main list and fetch grouped data
   const [trips, setTrips] = useState([]);
-  const [sortMode, setSortMode] = useState('date_desc'); // date_desc, date_asc, created_desc
+  const [sortKey, setSortKey] = useState('start');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(() => {
+    if (typeof window === 'undefined') return 8;
+    if (window.innerHeight <= 760) return 6;
+    if (window.innerHeight <= 920) return 8;
+    return 10;
+  });
 
   useEffect(() => {
     fetchTrips();
   }, []);
+
+  useEffect(() => {
+    const syncPageSize = () => {
+      const nextSize = window.innerHeight <= 760 ? 6 : window.innerHeight <= 920 ? 8 : 10;
+      setPageSize(nextSize);
+    };
+
+    syncPageSize();
+    window.addEventListener('resize', syncPageSize);
+    return () => window.removeEventListener('resize', syncPageSize);
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortKey, sortDirection, trips.length, pageSize]);
 
   const fetchTrips = async () => {
     try {
@@ -65,42 +88,100 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
       return total;
   };
 
-  const sortedTrips = [...trips].sort((a, b) => {
-      if (sortMode === 'created_desc') {
-          return new Date(b.created_at) - new Date(a.created_at);
-      }
-      if (sortMode === 'date_desc') {
-          return getTripDate(b) - getTripDate(a);
-      }
-      if (sortMode === 'date_asc') {
-          return getTripDate(a) - getTripDate(b);
-      }
-      return 0;
-  });
-
-  const toggleSort = () => {
-      const modes = ['date_desc', 'date_asc', 'created_desc'];
-      const nextIndex = (modes.indexOf(sortMode) + 1) % modes.length;
-      setSortMode(modes[nextIndex]);
+  const getTripEndDate = (trip) => {
+    if (trip.events && trip.events.length > 0) {
+      return new Date(trip.events[trip.events.length - 1].start_datetime);
+    }
+    return new Date(trip.created_at);
   };
 
-  const getSortLabel = () => {
-      switch(sortMode) {
-          case 'date_desc': return 'Latest Travel';
-          case 'date_asc': return 'Oldest Travel';
-          case 'created_desc': return 'Recently Created';
-          default: return 'Sort';
-      }
+  const getTripRoute = (trip) => {
+    if (!trip.events || trip.events.length === 0) return 'No route yet';
+    const first = trip.events[0];
+    const last = trip.events[trip.events.length - 1];
+    return `${first.from_name} -> ${last.to_name}`;
   };
+
+  const formatDate = (value) => {
+    const date = new Date(value);
+    return `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}.`;
+  };
+
+  const formatDateRange = (trip) => {
+    const start = getTripDate(trip);
+    const end = getTripEndDate(trip);
+    if (start.toDateString() === end.toDateString()) return formatDate(start);
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  };
+
+  const sortedTrips = useMemo(() => {
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    return [...trips].sort((a, b) => {
+      let aValue;
+      let bValue;
+
+      switch (sortKey) {
+        case 'created':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'title':
+          return direction * (a.title || '').localeCompare(b.title || '');
+        case 'legs':
+          aValue = a.events?.length || 0;
+          bValue = b.events?.length || 0;
+          break;
+        case 'distance':
+          aValue = getTripTotalDistance(a);
+          bValue = getTripTotalDistance(b);
+          break;
+        case 'start':
+        default:
+          aValue = getTripDate(a).getTime();
+          bValue = getTripDate(b).getTime();
+          break;
+      }
+
+      if (aValue === bValue) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+      return direction * (aValue - bValue);
+    });
+  }, [trips, sortKey, sortDirection]);
+
+  const tripCount = sortedTrips.length;
+  const legCount = sortedTrips.reduce((sum, trip) => sum + (trip.events?.length || 0), 0);
+  const totalPages = Math.max(1, Math.ceil(sortedTrips.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const paginatedTrips = sortedTrips.slice(pageStart, pageStart + pageSize);
+  const pageLabelStart = sortedTrips.length === 0 ? 0 : pageStart + 1;
+  const pageLabelEnd = Math.min(pageStart + pageSize, sortedTrips.length);
 
   return (
     <div className="manager-overlay glass-panel">
       <div className="manager-header">
-        <h2>JOURNEY LOG</h2>
+        <div className="manager-title-block">
+          <h2>JOURNEY LOG</h2>
+          <span>{tripCount} odysseys / {legCount} legs</span>
+        </div>
         <div className="manager-actions">
-          <button className="sort-btn" onClick={toggleSort} title="Change Sort Order">
-            <ArrowUpDown size={14} style={{marginRight: 6}}/>
-            {getSortLabel()}
+          <label className="sort-field" title="Sort journey log">
+            <ArrowUpDown size={14} />
+            <select value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
+              <option value="start">Travel date</option>
+              <option value="created">Created date</option>
+              <option value="distance">Distance</option>
+              <option value="legs">Leg count</option>
+              <option value="title">Title</option>
+            </select>
+          </label>
+          <button
+            className="sort-direction-btn"
+            onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+            title="Toggle sort direction"
+          >
+            {sortDirection === 'asc' ? 'ASC' : 'DESC'}
           </button>
           <div className="divider-vertical"></div>
           <button className="delete-all-btn" onClick={handleDeleteAll}>DELETE ALL</button>
@@ -108,41 +189,87 @@ const EventManager = ({ events: propEvents, onClose, onRefresh, onSelectTrip }) 
         </div>
       </div>
       
-      <div className="event-list">
-        {sortedTrips.length === 0 && <p className="empty-msg">No journey logs found. Start by adding a travel!</p>}
-        
-        {sortedTrips.map((trip) => (
-          <div key={trip.id} className="trip-group-container hover-effect" onClick={() => onSelectTrip(trip)}>
-            <div className="trip-header">
-              <div className="trip-title-section">
-                <ChevronRight size={16} />
-                <span className="trip-title">{trip.title || `Trip #${trip.id}`}</span>
-                <span className="trip-date">
-                   <Calendar size={12} style={{marginRight: 4}}/>
-                   {getTripDate(trip).toLocaleDateString()}
-                </span>
-                <span className="trip-badges">
-                    <span className="trip-badge">{trip.events.length} LEGS</span>
-                    <span className="trip-distance-badge">
-                        <Globe size={10} style={{marginRight:3}}/>
-                        {formatDistance(getTripTotalDistance(trip))} KM
-                    </span>
-                </span>
-                
-              </div>
-              <button 
-                    className="delete-trip-btn" 
-                    onClick={(e) => handleDeleteTrip(e, trip.id)}
-                    title="Delete Trip"
+      <div className="manager-table">
+        <div className="manager-table-head" aria-hidden="true">
+          <span>No</span>
+          <span>Odyssey</span>
+          <span>Route</span>
+          <span>Period</span>
+          <span>Legs</span>
+          <span>Distance</span>
+          <span>Actions</span>
+        </div>
+
+        <div className="event-list">
+          {sortedTrips.length === 0 && <p className="empty-msg">No journey logs found. Start by adding a travel!</p>}
+
+          {paginatedTrips.map((trip, index) => (
+            <div key={trip.id} className="manager-table-row" onClick={() => onSelectTrip(trip)}>
+              <span className="manager-cell index">{String(pageStart + index + 1).padStart(2, '0')}</span>
+              <span className="manager-cell title" title={trip.title || `Trip #${trip.id}`}>
+                {trip.title || `Trip #${trip.id}`}
+              </span>
+              <span className="manager-cell route" title={getTripRoute(trip)}>
+                <Route size={13} />
+                {getTripRoute(trip)}
+              </span>
+              <span className="manager-cell period">
+                <Calendar size={12} />
+                {formatDateRange(trip)}
+              </span>
+              <span className="manager-cell legs">{trip.events.length} LEGS</span>
+              <span className="manager-cell distance">
+                <Globe size={10} />
+                {formatDistance(getTripTotalDistance(trip))} KM
+              </span>
+              <div className="manager-cell actions">
+                <button
+                  className="open-trip-btn"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTrip(trip);
+                  }}
+                  title="Open trip"
                 >
-                <Trash2 size={16} />
-              </button>
+                  <ArrowRight size={16} />
+                </button>
+                <button
+                  className="delete-trip-btn"
+                  type="button"
+                  onClick={(e) => handleDeleteTrip(e, trip.id)}
+                  title="Delete Trip"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-            {/* We no longer show inline expanded events details here. 
-                User must click to open the TripDetailModal. */}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {sortedTrips.length > pageSize && (
+        <div className="manager-pagination" aria-label="Journey log pagination">
+          <span className="page-range">{pageLabelStart}-{pageLabelEnd} / {sortedTrips.length}</span>
+          <div className="page-controls">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={safePage === 1}
+            >
+              PREV
+            </button>
+            <span>{safePage} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={safePage === totalPages}
+            >
+              NEXT
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

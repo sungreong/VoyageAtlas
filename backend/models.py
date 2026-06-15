@@ -55,3 +55,16 @@ class TripPreparation(SQLModel, table=True):
     item_name: str
     is_checked: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class LocationFavorite(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    lat: float
+    lng: float
+    city: Optional[str] = None
+    region: Optional[str] = None
+    country: Optional[str] = None
+    display_name: Optional[str] = None
+    source: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

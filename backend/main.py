@@ -4,6 +4,7 @@ import os
 from api.events import router as events_router
 from api.geocode import router as geocode_router
 from api.importer import router as importer_router
+from api.location_favorites import router as location_favorites_router
 from database import create_db_and_tables
 from init_storage import init_minio
 from migrate_db import migrate
@@ -51,6 +52,7 @@ app.add_middleware(
 app.include_router(events_router)
 app.include_router(geocode_router)
 app.include_router(importer_router)
+app.include_router(location_favorites_router)
 
 @app.get("/")
 async def root():

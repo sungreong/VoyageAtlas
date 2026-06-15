@@ -9,8 +9,10 @@ import {
   getRouteStyle
 } from '../config/globeThemes';
 import { createVehicleObject, updateVehicleObject } from '../utils/globeVehicleObjects';
+import { createGlobeMarkerObject, updateGlobeMarkerObject } from '../utils/globeMarkerObjects';
 import { buildVisitedDestinationIndex, getWorldHighlightMarkers } from '../utils/worldHighlightLayer';
 import { buildVisitedCityClusters } from '../utils/globeCityClusters';
+import { useGlobeContextPick } from '../hooks/useGlobeContextPick';
 import {
   createScreenHudSprite,
   disposeScreenHudSprite,
@@ -27,6 +29,7 @@ import {
   getGreatCircleDistance,
   calculateCameraAltitude
 } from '../utils/flightPhysics';
+import { calculateSunPosition, formatRouteDate } from '../utils/globeDateTime';
 
 const OVERVIEW_LABEL_LIMIT = 48;
 const SIMULATION_FRAME_INTERVAL_MS = 1000 / 30;
@@ -80,17 +83,6 @@ const hexToRgba = (hex, alpha) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const formatRouteDate = (dateValue) => {
-  if (!dateValue) return '';
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date);
-};
-
 const getAerialCameraAltitude = (distance, progress = 0.5, landingProgress = 0) => {
   const cruiseAltitude = distance < 350
     ? 0.42
@@ -111,6 +103,56 @@ const getAerialCameraAltitude = (distance, progress = 0.5, landingProgress = 0) 
 };
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
+
+const getCenteredRouteView = (event) => {
+  if (!event) return null;
+
+  const fromLat = Number(event.from_lat);
+  const fromLng = Number(event.from_lng);
+  const toLat = Number(event.to_lat);
+  const toLng = Number(event.to_lng);
+  if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) return null;
+
+  const lngDelta = ((((toLng - fromLng) + 540) % 360) - 180);
+  const midLng = ((((fromLng + (lngDelta / 2)) + 540) % 360) - 180);
+  const distance = getGreatCircleDistance(fromLat, fromLng, toLat, toLng);
+  const altitude = Math.max(0.92, Math.min(1.85, calculateCameraAltitude(distance, 'start') * 1.12));
+
+  return {
+    lat: (fromLat + toLat) / 2,
+    lng: midLng,
+    altitude
+  };
+};
+
+const getVehicleViewportScale = (mode, dimensions, recordingActive, recordingViewMode) => {
+  const width = Number(dimensions?.width || window.innerWidth || 1280);
+  const height = Number(dimensions?.height || window.innerHeight || 720);
+  const shortSide = Math.min(width, height);
+  const longSide = Math.max(width, height);
+  const compactHeightScale = height < 760 ? 0.82 : height < 900 ? 0.92 : 1;
+  const compactWidthScale = width < 980 ? 0.76 : width < 1280 ? 0.9 : 1;
+  const smallScreenScale = Math.min(compactHeightScale, compactWidthScale);
+  const recordingScale = recordingActive
+    ? recordingViewMode === 'aerial'
+      ? 0.78
+      : 0.86
+    : 1;
+
+  const modeScale = {
+    starship: 0.58,
+    comet: 0.76,
+    hero: 0.82,
+    ufo: 0.86,
+    plane: 0.92,
+    ship: 0.94,
+    train: 0.94,
+    ground: 0.94
+  }[mode] || 0.9;
+
+  const viewportBias = Math.max(0.62, Math.min(1, shortSide / 820, longSide / 1440));
+  return Math.max(0.34, Math.min(1, modeScale * smallScreenScale * recordingScale * viewportBias));
+};
 
 const applyRouteStyle = (visual, active, routeStyle) => ({
   ...visual,
@@ -244,20 +286,7 @@ const createGreatCircleInterpolator = (lat1, lng1, lat2, lng2) => {
   };
 };
 
-const calculateSunPosition = (date) => {
-  const now = date || new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now - start;
-  const oneDay = 1000 * 60 * 60 * 24;
-  const day = Math.floor(diff / oneDay);
-  const lat = 23.44 * Math.sin(2 * Math.PI * (day - 81) / 365);
-  const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
-  const lng = (12 - utcHours) * 15;
-
-  return { lat, lng };
-};
-
-const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeClick, onMarkerClick, onWorldHighlightClick, speed, vehicleMode, freeCameraMode, forcedCamera, globeVisual, recordingActive, recordingViewMode }, ref) => {
+const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeClick, onGlobeContextPick, onMarkerClick, onWorldHighlightClick, speed, vehicleMode, freeCameraMode, forcedCamera, globeVisual, recordingActive, recordingViewMode }, ref) => {
   const globeEl = useRef();
   const cameraTimerRefs = useRef([]);
   const animationFrameRef = useRef(null);
@@ -266,6 +295,10 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
   const recordingHudDataRef = useRef(null);
   const lastSimulationFrameRef = useRef(0);
   const lastSunUpdateRef = useRef(0);
+  const [dimensions, setDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
   const visualConfig = useMemo(() => ({
     ...DEFAULT_GLOBE_VISUAL,
     ...(globeVisual || {})
@@ -287,6 +320,20 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
     cameraTimerRefs.current = [];
   };
 
+  useGlobeContextPick(globeEl, dimensions, onGlobeContextPick);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     if (forcedCamera && globeEl.current) {
        globeEl.current.pointOfView({
@@ -301,6 +348,19 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
 
   const currentEvent = events[currentEventIndex];
   const isFlightFocusMode = isPlaying && Boolean(currentEvent);
+
+  useEffect(() => {
+    if (!globeEl.current || isPlaying || freeCameraMode || forcedCamera) return;
+
+    const view = getCenteredRouteView(currentEvent);
+    if (!view) return;
+
+    const timerId = setTimeout(() => {
+      globeEl.current?.pointOfView(view, 900);
+    }, 120);
+
+    return () => clearTimeout(timerId);
+  }, [currentEvent, currentEventIndex, forcedCamera, freeCameraMode, isPlaying]);
 
   const cityClusters = useMemo(() => {
     return buildVisitedCityClusters(events);
@@ -471,81 +531,12 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
     );
   }, []);
 
-  const createLabelSprite = useCallback((label, globeRadius) => {
-    const text = label.label || label.name || '';
-    const active = Boolean(label.active);
-    const focusMode = Boolean(label.focusMode);
-    const worldHighlight = label.type === 'world-highlight';
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    const fontSize = Math.round((worldHighlight ? focusMode ? 12 : 13 : active ? 23 : focusMode ? 17 : 18) * markerStyle.labelScale);
-    const paddingX = worldHighlight ? 10 : active ? 18 : focusMode ? 12 : 13;
-    const paddingY = worldHighlight ? 6 : active ? 10 : focusMode ? 7 : 8;
-    const dotSize = worldHighlight ? 7 : active ? 14 : focusMode ? 8 : 10;
-
-    const measureCanvas = document.createElement('canvas');
-    const measureCtx = measureCanvas.getContext('2d');
-    measureCtx.font = `700 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
-    const textWidth = Math.ceil(measureCtx.measureText(text).width);
-    const width = Math.max(worldHighlight ? 68 : 72, textWidth + paddingX * 2 + dotSize + (worldHighlight ? 8 : 10));
-    const height = fontSize + paddingY * 2;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(width * pixelRatio);
-    canvas.height = Math.ceil(height * pixelRatio);
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(pixelRatio, pixelRatio);
-    ctx.font = `700 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
-    ctx.textBaseline = 'middle';
-
-    ctx.fillStyle = worldHighlight ? 'rgba(24, 22, 15, 0.48)' : active ? globeTheme.activeLabelFill : globeTheme.labelFill;
-    ctx.strokeStyle = worldHighlight ? 'rgba(255, 226, 168, 0.38)' : active ? globeTheme.activeLabelStroke : globeTheme.labelStroke;
-    ctx.lineWidth = 2;
-    if (worldHighlight) ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.roundRect(1, 1, width - 2, height - 2, worldHighlight ? 12 : 9);
-    ctx.fill();
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.fillStyle = worldHighlight ? 'rgba(255, 226, 168, 0.22)' : active ? globeTheme.activeMarker : globeTheme.marker;
-    ctx.strokeStyle = worldHighlight ? 'rgba(255, 226, 168, 0.82)' : ctx.fillStyle;
-    ctx.lineWidth = worldHighlight ? 2 : 1;
-    ctx.beginPath();
-    ctx.arc(paddingX, height / 2, dotSize / 2, 0, Math.PI * 2);
-    if (worldHighlight) ctx.stroke();
-    else ctx.fill();
-
-    ctx.fillStyle = worldHighlight ? 'rgba(255, 244, 205, 0.78)' : active ? globeTheme.activeLabelText : globeTheme.labelText;
-    ctx.fillText(text, paddingX + dotSize + 9, height / 2 + 1);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-
-    const material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthTest: true,
-      depthWrite: false
-    });
-
-    const sprite = new THREE.Sprite(material);
-    const spriteHeight = (worldHighlight ? focusMode ? 1.58 : 1.75 : active ? 3.9 : focusMode ? 2.35 : 2.55) * markerStyle.labelScale;
-    sprite.scale.set((width / height) * spriteHeight, spriteHeight, 1);
-    sprite.position.copy(toGlobeVector(label.lat, label.lng, worldHighlight ? 0.024 : active ? 0.035 : focusMode ? 0.012 : 0.018, globeRadius));
-    sprite.renderOrder = worldHighlight ? 5 : active ? 18 : focusMode ? 16 : 4;
-    sprite.userData = label;
-
-    return sprite;
-  }, [globeTheme, markerStyle.labelScale, toGlobeVector]);
-
   const createGlobeSprite = useCallback((item, globeRadius) => {
     if (item.type === 'vehicle') {
       return createVehicleObject(item, globeRadius, toGlobeVector, travelerTextureCacheRef);
     }
-    return createLabelSprite(item, globeRadius);
-  }, [createLabelSprite, toGlobeVector]);
+    return createGlobeMarkerObject(item, globeRadius, toGlobeVector, globeTheme, markerStyle);
+  }, [globeTheme, markerStyle, toGlobeVector]);
 
   const updateGlobeSprite = useCallback((obj, item, globeRadius) => {
     if (!obj || !item) return;
@@ -555,14 +546,8 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
       return;
     }
 
-    if (obj.userData?.visualKey !== item.visualKey || obj.userData?.label !== item.label) {
-      const fresh = createLabelSprite(item, globeRadius);
-      obj.material?.map?.dispose(); obj.material?.dispose();
-      obj.material = fresh.material; obj.scale.copy(fresh.scale); obj.renderOrder = fresh.renderOrder;
-    }
-    obj.position.copy(toGlobeVector(Number(item.lat), Number(item.lng), item.active ? 0.035 : item.focusMode ? 0.012 : 0.018, globeRadius));
-    obj.userData = item;
-  }, [createLabelSprite, toGlobeVector]);
+    updateGlobeMarkerObject(obj, item, globeRadius, toGlobeVector, globeTheme, markerStyle);
+  }, [globeTheme, markerStyle, toGlobeVector]);
 
   const customLayerData = useMemo(() => {
     const remainingAerialKm = airplanePos && currentEvent
@@ -580,21 +565,25 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
         )
       : 0;
     const vehicleData = airplanePos
-      ? [{
+      ? (() => {
+        const normalizedMode = normalizeTransport(null, vehicleMode);
+        return [{
           ...airplanePos,
           lat: Number(airplanePos.lat),
           lng: Number(airplanePos.lng),
           landingProgress,
-          vehicleMode: normalizeTransport(null, vehicleMode),
+          vehicleMode: normalizedMode,
+          viewportScale: getVehicleViewportScale(normalizedMode, dimensions, recordingActive, recordingViewMode),
           routeFromName: currentEvent?.from_name,
           routeToName: currentEvent?.to_name,
           vehicleLift: routeStyle.vehicleLift,
           type: 'vehicle'
-        }]
+        }];
+      })()
       : [];
 
     return [...worldHighlightMarkers, ...labelsData, ...vehicleData];
-  }, [airplanePos, currentEvent, labelsData, recordingActive, recordingViewMode, routeStyle.vehicleLift, vehicleMode, worldHighlightMarkers]);
+  }, [airplanePos, currentEvent, dimensions, labelsData, recordingActive, recordingViewMode, routeStyle.vehicleLift, vehicleMode, worldHighlightMarkers]);
 
   const ringsData = useMemo(() => {
     const cityRings = cityClusters.map(c => {
@@ -876,21 +865,6 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
     }
   }, [freeCameraMode, events, currentEvent, currentEventIndex, isPlaying]);
 
-  // Handle Window Resize
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   useEffect(() => {
     let disposed = false;
     const hud = recordingHudRef.current;
@@ -940,12 +914,12 @@ const TravelGlobe = forwardRef(({ events, currentEventIndex, isPlaying, onGlobeC
           drawRouteHud(routeSprite, data.route);
           hud.routeKey = data.route.key;
         }
-        positionScreenHudSprite(routeSprite, camera, dimensions, { x: 0.5, y: 0.79 }, 96);
+        positionScreenHudSprite(routeSprite, camera, dimensions, { x: 0.5, y: 0.79, margin: 28 }, 96);
 
         if (data.starship && dimensions.width >= 1080) {
           const starshipSprite = ensureStarshipSprite(scene);
           drawStarshipHud(starshipSprite, data.starship);
-          positionScreenHudSprite(starshipSprite, camera, dimensions, { x: 0.69, y: 0.47 }, 220);
+          positionScreenHudSprite(starshipSprite, camera, dimensions, { x: 0.76, y: 0.47, margin: 30 }, 220);
         } else {
           removeStarshipSprite();
         }

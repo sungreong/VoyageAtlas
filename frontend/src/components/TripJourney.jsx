@@ -1,10 +1,22 @@
 import React from 'react';
-import { Plane, Moon, Plus, Camera, MapPin } from 'lucide-react';
+import { Plane, Moon, Plus, Camera, MapPin, ArrowRight } from 'lucide-react';
 import './TripJourney.css';
 
 const TripJourney = ({ feedItems, onUploadClick, trip }) => {
    const formatDate = value => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Open';
    const stopCount = feedItems.filter(item => item.type === 'stay').length;
+   const legCount = feedItems.filter(item => item.type === 'transit').length;
+   const mediaCount = feedItems.reduce((sum, item) => sum + (item.media?.length || item.data?.media_list?.length || 0), 0);
+   let transitIndex = 0;
+   let stopIndex = 0;
+   const ledgerItems = feedItems.map(item => {
+      if (item.type === 'transit') {
+         transitIndex += 1;
+         return { ...item, displayIndex: transitIndex };
+      }
+      stopIndex += 1;
+      return { ...item, displayIndex: stopIndex };
+   });
 
    return (
       <div className="journey-tab-content">
@@ -16,71 +28,93 @@ const TripJourney = ({ feedItems, onUploadClick, trip }) => {
             <p>{stopCount} mapped stops, ordered by the path drawn on the globe.</p>
          </div>
 
-      <div className="feed-stream">
-         <div className="feed-node system">
-            <div className="node-line"></div>
-            <div className="node-dot start"></div>
-            <div className="node-content">
-               <span>Trip Started from <strong>{trip?.events[0]?.from_name}</strong></span>
+         <div className="journey-summary-strip">
+            <div>
+               <span>START</span>
+               <strong>{trip?.events[0]?.from_name || '-'}</strong>
+            </div>
+            <div>
+               <span>LEGS</span>
+               <strong>{legCount}</strong>
+            </div>
+            <div>
+               <span>STOPS</span>
+               <strong>{stopCount}</strong>
+            </div>
+            <div>
+               <span>MEDIA</span>
+               <strong>{mediaCount}</strong>
             </div>
          </div>
-         {feedItems.map((item, idx) => (
-            <React.Fragment key={item.id}>
+
+         <div className="journey-ledger">
+            <div className="journey-ledger-head">
+               <span>SEQ</span>
+               <span>ROUTE / STOP</span>
+               <span>DATE</span>
+               <span>MEMORY</span>
+            </div>
+
+            {ledgerItems.map((item) => (
+               <React.Fragment key={item.id}>
                {item.type === 'transit' ? (
-                  <div className="feed-node transit">
-                     <div className="node-line"></div>
-                     <div className="transit-card glass-panel">
-                        <div className="transit-icon"><Plane size={16}/></div>
-                        <div className="transit-info">
-                           <span className="transit-route">{item.data.from_name} to {item.data.to_name}</span>
-                           <span className="transit-meta">{formatDate(item.data.start_datetime)}</span>
+                  <div className="journey-ledger-row transit">
+                     <span className="ledger-index">L{String(item.displayIndex).padStart(2, '0')}</span>
+                     <div className="ledger-main">
+                        <div className="ledger-route">
+                           <Plane size={15}/>
+                           <strong>{item.data.from_name}</strong>
+                           <ArrowRight size={13}/>
+                           <strong>{item.data.to_name}</strong>
                         </div>
+                        <span className="ledger-subline">Travel leg on the globe route</span>
                      </div>
+                     <span className="ledger-date">{formatDate(item.data.start_datetime)}</span>
+                     <span className="ledger-memory muted">Transit</span>
                   </div>
                ) : (
-                  <div className="feed-node stay">
-                     <div className="node-line"></div>
-                     <div className="stay-card glass-panel">
-                        <div className="stay-header">
-                           <div className="stay-heading">
-                              <span className="stop-index">STOP {Math.ceil(idx / 2) + 1}</span>
-                              <h2>{item.city}</h2>
-                              <div className="stay-meta">
-                                 <span className="nights-badge"><Moon size={12}/> {item.duration} Nights</span>
-                                 <span>{formatDate(item.data.start_datetime)} - {item.endDate ? formatDate(item.endDate) : 'End'}</span>
-                              </div>
-                           </div>
-                           <button className="add-memories-btn" type="button" onClick={() => onUploadClick(item.data.id)}>
-                              <Plus size={14}/> Memory
-                           </button>
+                  <div className="journey-ledger-row stay">
+                     <span className="ledger-index">S{String(item.displayIndex).padStart(2, '0')}</span>
+                     <div className="ledger-main">
+                        <div className="ledger-route">
+                           <MapPin size={15}/>
+                           <strong>{item.city}</strong>
+                           <span className="nights-badge compact"><Moon size={12}/> {item.duration} nights</span>
                         </div>
-                        <div className="stay-gallery-grid">
-                           {item.media.slice(0, 6).map((m) => (
-                              <div key={m.id} className="stay-media-thumb">
+                        <span className="ledger-subline">Stay window: {formatDate(item.data.start_datetime)} - {item.endDate ? formatDate(item.endDate) : 'End'}</span>
+                     </div>
+                     <span className="ledger-date">{formatDate(item.data.start_datetime)}</span>
+                     <div className="ledger-memory">
+                        <div className="memory-preview-strip">
+                           {item.media.slice(0, 4).map((m) => (
+                              <span key={m.id} className="memory-thumb">
                                  <img src={m.url} loading="lazy" alt={`${item.city} memory`} />
-                              </div>
+                              </span>
                            ))}
-                           {item.media.length > 6 && (
-                              <div className="stay-media-more">+{item.media.length - 6}</div>
-                           )}
-                           {item.media.length === 0 && (
-                              <button className="empty-stay-placeholder" type="button" onClick={() => onUploadClick(item.data.id)}>
-                                 <Camera size={20}/>
-                                 <span>Add photos for {item.city}</span>
-                              </button>
-                           )}
+                           {item.media.length > 4 && <span className="memory-more">+{item.media.length - 4}</span>}
+                           {item.media.length === 0 && <span className="memory-empty"><Camera size={13}/> No media</span>}
                         </div>
-                        <div className="stay-footnote">
-                           <MapPin size={14} />
-                           <span>Media added here appears in both this stop and the Gallery tab.</span>
-                        </div>
+                        <button className="add-memories-btn compact" type="button" onClick={() => onUploadClick(item.data.id)}>
+                           <Plus size={13}/> Add
+                        </button>
                      </div>
                   </div>
                )}
-            </React.Fragment>
-         ))}
-         <div className="feed-node end"><div className="node-dot end"></div><div className="node-content"><span>Trip Completed</span></div></div>
-      </div>
+               </React.Fragment>
+            ))}
+
+            <div className="journey-ledger-row complete">
+               <span className="ledger-index">END</span>
+               <div className="ledger-main">
+                  <div className="ledger-route">
+                     <Camera size={15}/>
+                     <strong>Trip Completed</strong>
+                  </div>
+               </div>
+               <span className="ledger-date">-</span>
+               <span className="ledger-memory muted">Archived</span>
+            </div>
+         </div>
       </div>
    );
 };
