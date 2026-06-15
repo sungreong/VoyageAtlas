@@ -121,3 +121,7 @@ VoyageAtlas/
 - Recommended destination data lives in `frontend/src/config/worldHighlights.js`.
 - Recommended destination filtering and sorting lives in `frontend/src/utils/worldHighlightLayer.js`.
 - In development, SQLite data may be recreated when schema changes are detected. Export important data before risky local changes.
+
+## License
+
+This project is distributed under the [Apache License 2.0](LICENSE).

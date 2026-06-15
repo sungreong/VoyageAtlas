@@ -125,3 +125,7 @@ VoyageAtlas/
 - 추천 여행지 데이터는 `frontend/src/config/worldHighlights.js`에 있습니다.
 - 추천 여행지 필터링/정렬은 `frontend/src/utils/worldHighlightLayer.js`에서 처리합니다.
 - 개발 환경의 SQLite DB는 스키마 변화에 따라 재생성될 수 있으므로 중요한 데이터는 export 후 작업하는 것이 안전합니다.
+
+## 라이선스
+
+이 프로젝트는 [Apache License 2.0](LICENSE)에 따라 배포됩니다.
